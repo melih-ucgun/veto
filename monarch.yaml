@@ -1,0 +1,7 @@
+resources:
+  - type: noop
+    name: test1
+  - type: noop
+    name: test2
+  - type: file
+    name: example-dotfile
