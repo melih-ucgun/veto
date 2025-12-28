@@ -18,6 +18,7 @@ type Resource struct {
 	State     string   `yaml:"state,omitempty"`
 	Enabled   bool     `yaml:"enabled,omitempty"`
 	DependsOn []string `yaml:"depends_on,omitempty"`
+	URL       string   `yaml:"url,omitempty"`
 }
 
 type Host struct {
