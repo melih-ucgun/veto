@@ -43,7 +43,7 @@ func New(r config.Resource, vars map[string]interface{}) (Resource, error) {
 		}, nil
 
 	case "noop":
-		return nil, nil // İşlem yapılmayacak kaynak
+		return nil, nil // İşlem yapılmayacak, hata değil.
 
 	default:
 		return nil, fmt.Errorf("bilinmeyen kaynak tipi: %s", r.Type)

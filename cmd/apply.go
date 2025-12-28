@@ -18,25 +18,21 @@ var applyCmd = &cobra.Command{
 		hostName, _ := cmd.Flags().GetString("host")
 		dryRun, _ := cmd.Flags().GetBool("dry-run")
 
-		// 1. Yapılandırmayı Yükle
 		cfg, err := config.LoadConfig(configFile)
 		if err != nil {
 			fmt.Printf("❌ Konfigürasyon yüklenemedi: %v\n", err)
 			os.Exit(1)
 		}
 
-		// 2. Uzak Sunucu Kontrolü (Remote Execution)
 		if hostName != "localhost" {
 			executeRemote(hostName, configFile, dryRun, cfg)
 			return
 		}
 
-		// 3. Yerel Çalıştırma (Localhost)
 		executeLocal(configFile, dryRun, cfg)
 	},
 }
 
-// executeRemote, SSH üzerinden uzak sunucuda Monarch'ı çalıştırır.
 func executeRemote(hostName, configFile string, dryRun bool, cfg *config.Config) {
 	fmt.Printf("🌐 Uzak sunucuya bağlanılıyor: %s\n", hostName)
 
@@ -78,7 +74,6 @@ func executeRemote(hostName, configFile string, dryRun bool, cfg *config.Config)
 	}
 
 	fmt.Println("🏰 Uzak sunucuda Monarch başlatılıyor...")
-	// Uzak sunucuda sudo ile çalıştırıyoruz (paket kurulumu vb. yetkiler için)
 	remoteCmd := "chmod +x /tmp/monarch && sudo /tmp/monarch apply --config /tmp/monarch.yaml"
 	if dryRun {
 		remoteCmd += " --dry-run"
@@ -92,7 +87,6 @@ func executeRemote(hostName, configFile string, dryRun bool, cfg *config.Config)
 	fmt.Println("\n🏁 Uzak sunucu işlemi tamamlandı.")
 }
 
-// executeLocal, yerel makinede kaynakları sırasıyla uygular.
 func executeLocal(configFile string, dryRun bool, cfg *config.Config) {
 	sortedResources, err := config.SortResources(cfg.Resources)
 	if err != nil {
@@ -109,42 +103,16 @@ func executeLocal(configFile string, dryRun bool, cfg *config.Config) {
 	fmt.Printf("🔍 %d kaynak kontrol edilecek\n\n", len(sortedResources))
 
 	for _, r := range sortedResources {
-		processedContent := r.Content
-		if r.Content != "" {
-			var err error
-			processedContent, err = config.ExecuteTemplate(r.Content, cfg.Vars)
-			if err != nil {
-				fmt.Printf("❌ [%s] Şablon işleme hatası: %v\n", r.Name, err)
-				continue
-			}
+		// Fabrikayı (Factory) kullanarak kaynağı oluşturuyoruz
+		res, err := resources.New(r, cfg.Vars)
+		if err != nil {
+			fmt.Printf("⚠️ [%s] Kaynak oluşturma hatası: %v\n", r.Name, err)
+			continue
 		}
 
-		var res resources.Resource
-
-		switch r.Type {
-		case "file":
-			res = &resources.FileResource{
-				ResourceName: r.Name,
-				Path:         r.Path,
-				Content:      processedContent,
-			}
-		case "package":
-			res = &resources.PackageResource{
-				PackageName: r.Name,
-				State:       r.State,
-				Provider:    resources.GetDefaultProvider(),
-			}
-		case "service":
-			res = &resources.ServiceResource{
-				ServiceName:  r.Name,
-				DesiredState: r.State,
-				Enabled:      r.Enabled,
-			}
-		case "noop":
-			fmt.Printf("ℹ️ noop kaynağı atlanıyor: %s\n", r.Name)
-			continue
-		default:
-			fmt.Printf("⚠️ Bilinmeyen kaynak tipi: %s (İsim: %s)\n", r.Type, r.Name)
+		// noop tipi nil döndüğü için kontrol edip atlıyoruz
+		if res == nil {
+			fmt.Printf("ℹ️ [%s] atlanıyor (tip: %s)\n", r.Name, r.Type)
 			continue
 		}
 

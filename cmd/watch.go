@@ -24,14 +24,12 @@ var watchCmd = &cobra.Command{
 		fmt.Printf("👁️ Monarch Watch başlatıldı. (Aralık: %d saniye, Otomatik Düzeltme: %v)\n", interval, autoHeal)
 		fmt.Println("Durdurmak için Ctrl+C tuşlarına basın.")
 
-		// Çıkış sinyallerini yakala
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
 		ticker := time.NewTicker(time.Duration(interval) * time.Second)
 		defer ticker.Stop()
 
-		// İlk çalıştırmayı hemen yap
 		runWatchCycle(configFile, autoHeal)
 
 		for {
@@ -46,7 +44,6 @@ var watchCmd = &cobra.Command{
 	},
 }
 
-// runWatchCycle, tek bir kontrol döngüsünü çalıştırır.
 func runWatchCycle(configFile string, autoHeal bool) {
 	fmt.Printf("[%s] 🔍 Kontrol ediliyor...\n", time.Now().Format("15:04:05"))
 
@@ -65,23 +62,9 @@ func runWatchCycle(configFile string, autoHeal bool) {
 	driftsFound := 0
 
 	for _, r := range sortedResources {
-		// apply.go'daki kaynak oluşturma mantığının aynısı
-		var res resources.Resource
-
-		// Şablon işleme
-		content := r.Content
-		if content != "" {
-			content, _ = config.ExecuteTemplate(r.Content, cfg.Vars)
-		}
-
-		switch r.Type {
-		case "file":
-			res = &resources.FileResource{ResourceName: r.Name, Path: r.Path, Content: content}
-		case "package":
-			res = &resources.PackageResource{PackageName: r.Name, State: r.State, Provider: resources.GetDefaultProvider()}
-		case "service":
-			res = &resources.ServiceResource{ServiceName: r.Name, DesiredState: r.State, Enabled: r.Enabled}
-		default:
+		// apply.go ile aynı fabrika metodunu kullanıyoruz
+		res, err := resources.New(r, cfg.Vars)
+		if err != nil || res == nil {
 			continue
 		}
 
@@ -105,9 +88,7 @@ func runWatchCycle(configFile string, autoHeal bool) {
 		}
 	}
 
-	if driftsFound == 0 {
-		// Eğer her şey yolundaysa sessizce devam et veya log at
-	} else if !autoHeal {
+	if driftsFound > 0 && !autoHeal {
 		fmt.Printf("📢 Toplam %d sapma bulundu. Düzelmek için 'monarch apply' kullanın.\n", driftsFound)
 	}
 }
