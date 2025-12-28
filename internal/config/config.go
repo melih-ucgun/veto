@@ -1,109 +1,65 @@
 package config
 
 import (
-	"fmt"
 	"os"
-	"strings"
 
-	"github.com/melih-ucgun/monarch/internal/crypto"
 	"gopkg.in/yaml.v3"
 )
 
-type Resource struct {
-	Type      string   `yaml:"type"`
-	Name      string   `yaml:"name"`
-	ID        string   `yaml:"id,omitempty"`
-	Path      string   `yaml:"path,omitempty"`
-	Content   string   `yaml:"content,omitempty"`
-	State     string   `yaml:"state,omitempty"` // installed, running, stopped, absent
-	Enabled   bool     `yaml:"enabled,omitempty"`
-	DependsOn []string `yaml:"depends_on,omitempty"`
-	URL       string   `yaml:"url,omitempty"`
-	Command   string   `yaml:"command,omitempty"`
-
-	// Exec Idempotency (Sadece gerektiğinde çalıştır)
-	Creates string `yaml:"creates,omitempty"`
-	OnlyIf  string `yaml:"only_if,omitempty"`
-	Unless  string `yaml:"unless,omitempty"`
-
-	// Meta Veriler
-	Mode  string `yaml:"mode,omitempty"`
-	Owner string `yaml:"owner,omitempty"`
-	Group string `yaml:"group,omitempty"`
-
-	Target string `yaml:"target,omitempty"`
-
-	Image   string   `yaml:"image,omitempty"`
-	Ports   []string `yaml:"ports,omitempty"`
-	Env     []string `yaml:"env,omitempty"`
-	Volumes []string `yaml:"volumes,omitempty"`
-}
-
-func (r *Resource) Identify() string {
-	if r.ID != "" {
-		return r.ID
-	}
-	return fmt.Sprintf("%s:%s", r.Type, r.Name)
+type Config struct {
+	Vars      map[string]interface{} `yaml:"vars"`
+	Hosts     []Host                 `yaml:"hosts"`
+	Resources []Resource             `yaml:"resources"`
 }
 
 type Host struct {
 	Name           string `yaml:"name"`
 	Address        string `yaml:"address"`
+	Port           int    `yaml:"port"`
 	User           string `yaml:"user"`
-	Password       string `yaml:"password,omitempty"`
-	KeyPath        string `yaml:"key_path,omitempty"`
-	Passphrase     string `yaml:"passphrase,omitempty"`
-	BecomePassword string `yaml:"become_password,omitempty"`
+	Password       string `yaml:"password"`
+	BecomePassword string `yaml:"become_password"`
 }
 
-type Config struct {
-	Vars      map[string]interface{} `yaml:"vars,omitempty"`
-	Resources []Resource             `yaml:"resources"`
-	Hosts     []Host                 `yaml:"hosts,omitempty"`
+type Resource struct {
+	Name      string            `yaml:"name"`
+	Type      string            `yaml:"type"`
+	Path      string            `yaml:"path"`
+	Content   string            `yaml:"content"`
+	Source    string            `yaml:"source"`
+	Target    string            `yaml:"target"`
+	Mode      string            `yaml:"mode"`
+	Owner     string            `yaml:"owner"`
+	Group     string            `yaml:"group"`
+	State     string            `yaml:"state"` // present, absent, started, stopped
+	Enabled   bool              `yaml:"enabled"`
+	Image     string            `yaml:"image"`
+	Ports     []string          `yaml:"ports"`
+	Env       map[string]string `yaml:"env"`
+	Volumes   []string          `yaml:"volumes"`
+	Command   string            `yaml:"command"`
+	Creates   string            `yaml:"creates"`
+	OnlyIf    string            `yaml:"only_if"`
+	Unless    string            `yaml:"unless"`
+	URL       string            `yaml:"url"`
+	DependsOn []string          `yaml:"depends_on"`
 }
 
 func LoadConfig(path string) (*Config, error) {
-	file, err := os.Open(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("dosya açılamadı: %w", err)
+		return nil, err
 	}
-	defer file.Close()
 
 	var cfg Config
-	decoder := yaml.NewDecoder(file)
-	decoder.KnownFields(true) // Bilinmeyen alanlara izin verme
-
-	if err := decoder.Decode(&cfg); err != nil {
-		return nil, fmt.Errorf("YAML ayrıştırma hatası: %w", err)
-	}
-
-	if err := cfg.ResolveSecrets(); err != nil {
-		return nil, fmt.Errorf("sırlar çözülemedi: %w", err)
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return nil, err
 	}
 
 	return &cfg, nil
 }
 
-func (c *Config) ResolveSecrets() error {
-	privKey := os.Getenv("MONARCH_KEY")
-	if privKey == "" {
-		return nil
-	}
-	for k, v := range c.Vars {
-		if strVal, ok := v.(string); ok && strings.HasPrefix(strVal, "-----BEGIN AGE ENCRYPTED FILE-----") {
-			dec, err := crypto.Decrypt(strVal, privKey)
-			if err == nil {
-				c.Vars[k] = dec
-			}
-		}
-	}
-	for i := range c.Hosts {
-		if strings.HasPrefix(c.Hosts[i].BecomePassword, "-----BEGIN AGE ENCRYPTED FILE-----") {
-			dec, err := crypto.Decrypt(c.Hosts[i].BecomePassword, privKey)
-			if err == nil {
-				c.Hosts[i].BecomePassword = dec
-			}
-		}
-	}
-	return nil
+// Identify, kaynağı tekilleştirmek için bir ID üretir.
+func (r *Resource) Identify() string {
+	return r.Type + ":" + r.Name
 }

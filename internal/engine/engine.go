@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -46,7 +47,7 @@ func (e *Reconciler) Run() (int, error) {
 func (e *Reconciler) runLocal() (int, error) {
 	levels, err := config.SortResources(e.Config.Resources)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("sıralama hatası: %w", err)
 	}
 
 	drifts := 0
@@ -54,23 +55,19 @@ func (e *Reconciler) runLocal() (int, error) {
 
 	for i, level := range levels {
 		slog.Debug("Katman işleniyor", "seviye", i+1, "kaynak_sayisi", len(level))
-
 		g, _ := errgroup.WithContext(context.Background())
 
 		for _, rCfg := range level {
 			currentRCfg := rCfg
-
 			g.Go(func() error {
 				res, err := resources.New(currentRCfg, e.Config.Vars)
-				if err != nil || res == nil {
-					slog.Warn("Kaynak oluşturulamadı", "name", currentRCfg.Name, "error", err)
-					return nil
+				if err != nil {
+					return err
 				}
 
 				ok, err := res.Check()
 				if err != nil {
-					slog.Error("Check hatası", "id", res.ID(), "err", err)
-					return err
+					return fmt.Errorf("check hatası [%s]: %w", res.ID(), err)
 				}
 
 				if !ok {
@@ -83,9 +80,8 @@ func (e *Reconciler) runLocal() (int, error) {
 						slog.Info("SAPMA (Dry-Run)", "id", res.ID(), "diff", diff)
 					} else {
 						slog.Info("Uygulanıyor", "id", res.ID())
-						applyErr := res.Apply()
-						if applyErr != nil {
-							return applyErr
+						if applyErr := res.Apply(); applyErr != nil {
+							return fmt.Errorf("apply hatası [%s]: %w", res.ID(), applyErr)
 						}
 
 						if e.State != nil {
@@ -98,7 +94,6 @@ func (e *Reconciler) runLocal() (int, error) {
 				return nil
 			})
 		}
-
 		if err := g.Wait(); err != nil {
 			return drifts, err
 		}
@@ -126,8 +121,13 @@ func (e *Reconciler) runRemote() (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	defer t.Close()
 
-	remoteOS, remoteArch, _ := t.GetRemoteSystemInfo()
+	remoteOS, remoteArch, err := t.GetRemoteSystemInfo()
+	if err != nil {
+		return 0, err
+	}
+
 	binaryPath, err := resolveBinaryPath(remoteOS, remoteArch)
 	if err != nil {
 		return 0, err
@@ -137,18 +137,40 @@ func (e *Reconciler) runRemote() (int, error) {
 	remoteBinPath := fmt.Sprintf("/tmp/monarch-%s", timestamp)
 	remoteCfgPath := fmt.Sprintf("/tmp/monarch-%s.yaml", timestamp)
 
-	_ = t.CopyFile(binaryPath, remoteBinPath)
-	_ = t.CopyFile(e.Opts.ConfigFile, remoteCfgPath)
+	if err := t.CopyFile(binaryPath, remoteBinPath); err != nil {
+		return 0, err
+	}
+	if err := t.CopyFile(e.Opts.ConfigFile, remoteCfgPath); err != nil {
+		return 0, err
+	}
 
 	runCmd := fmt.Sprintf("chmod +x %s && %s apply --config %s", remoteBinPath, remoteBinPath, remoteCfgPath)
 	if e.Opts.DryRun {
 		runCmd += " --dry-run"
 	}
 
-	err = t.RunRemoteSecure(runCmd, "")
-	_ = t.RunRemoteSecure(fmt.Sprintf("rm -f %s %s", remoteBinPath, remoteCfgPath), "")
+	err = t.RunRemoteSecure(runCmd, target.BecomePassword)
+	if err != nil {
+		return 0, fmt.Errorf("uzak sunucu hatası: %w", err)
+	}
 
-	return 0, err
+	// Merkezi State Senkronizasyonu
+	if !e.Opts.DryRun {
+		stateContent, fetchErr := t.CaptureRemoteOutput("cat .monarch/state.json")
+		if fetchErr == nil {
+			var remoteState State
+			if jsonErr := json.Unmarshal([]byte(stateContent), &remoteState); jsonErr == nil {
+				e.stateMutex.Lock()
+				e.State.Merge(&remoteState)
+				_ = e.State.Save()
+				e.stateMutex.Unlock()
+				slog.Info("Uzak state senkronize edildi.")
+			}
+		}
+	}
+
+	_ = t.RunRemoteSecure(fmt.Sprintf("rm -f %s %s", remoteBinPath, remoteCfgPath), "")
+	return 0, nil
 }
 
 func resolveBinaryPath(targetOS, targetArch string) (string, error) {

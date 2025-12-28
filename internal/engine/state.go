@@ -7,7 +7,6 @@ import (
 	"time"
 )
 
-// ResourceState, tek bir kaynağın durum bilgisini tutar.
 type ResourceState struct {
 	ID          string    `json:"id"`
 	Type        string    `json:"type"`
@@ -15,12 +14,10 @@ type ResourceState struct {
 	Success     bool      `json:"success"`
 }
 
-// State, tüm sistemin Monarch tarafından bilinen durumudur.
 type State struct {
 	Resources map[string]ResourceState `json:"resources"`
 }
 
-// LoadState, yerel state.json dosyasını yükler.
 func LoadState() (*State, error) {
 	path := getStatePath()
 	data, err := os.ReadFile(path)
@@ -38,7 +35,6 @@ func LoadState() (*State, error) {
 	return &state, nil
 }
 
-// Save, mevcut durumu dosyaya kaydeder.
 func (s *State) Save() error {
 	path := getStatePath()
 	dir := filepath.Dir(path)
@@ -54,7 +50,6 @@ func (s *State) Save() error {
 	return os.WriteFile(path, data, 0644)
 }
 
-// UpdateResource, bir kaynağın durumunu günceller.
 func (s *State) UpdateResource(id, resType string, success bool) {
 	if s.Resources == nil {
 		s.Resources = make(map[string]ResourceState)
@@ -67,8 +62,19 @@ func (s *State) UpdateResource(id, resType string, success bool) {
 	}
 }
 
+// Merge, farklı makinelerden gelen state bilgilerini ana state ile birleştirir.
+func (s *State) Merge(other *State) {
+	if other == nil || other.Resources == nil {
+		return
+	}
+	if s.Resources == nil {
+		s.Resources = make(map[string]ResourceState)
+	}
+	for id, resState := range other.Resources {
+		s.Resources[id] = resState
+	}
+}
+
 func getStatePath() string {
-	// Geliştirme kolaylığı için yerel dizinde tutuyoruz.
-	// İleride /var/lib/monarch/state.json gibi bir konuma taşınabilir.
 	return ".monarch/state.json"
 }

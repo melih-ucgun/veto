@@ -5,124 +5,78 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/melih-ucgun/monarch/internal/config"
 	"golang.org/x/crypto/ssh"
 )
 
 type SSHTransport struct {
-	Client *ssh.Client
-	Config config.Host
+	client *ssh.Client
+	host   config.Host
 }
 
-func NewSSHTransport(hostConfig config.Host) (*SSHTransport, error) {
-	keyPath := hostConfig.KeyPath
-	if strings.HasPrefix(keyPath, "~/") {
-		home, _ := os.UserHomeDir()
-		keyPath = filepath.Join(home, keyPath[2:])
+func NewSSHTransport(h config.Host) (*SSHTransport, error) {
+	var authMethods []ssh.AuthMethod
+	if h.Password != "" {
+		authMethods = append(authMethods, ssh.Password(h.Password))
 	}
 
-	key, err := os.ReadFile(keyPath)
-	if err != nil {
-		return nil, fmt.Errorf("SSH key okunamadı (%s): %v", keyPath, err)
-	}
-
-	signer, err := ssh.ParsePrivateKey(key)
-	if err != nil {
-		return nil, fmt.Errorf("SSH key parse hatası: %v", err)
-	}
-
-	sshConfig := &ssh.ClientConfig{
-		User: hostConfig.User,
-		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(signer),
-		},
+	clientConfig := &ssh.ClientConfig{
+		User:            h.User,
+		Auth:            authMethods,
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		Timeout:         15 * time.Second,
 	}
 
-	// DÜZELTME: Hostname -> Host (Varsayım) ve Port -> 22 (Varsayılan)
-	// Eğer config.Host struct'ında 'Host' alanı yoksa, lütfen 'Name' veya 'Address' olarak değiştirin.
-	addr := fmt.Sprintf("%s:22", hostConfig.User)
+	port := h.Port
+	if port == 0 {
+		port = 22
+	}
 
-	client, err := ssh.Dial("tcp", addr, sshConfig)
+	addr := fmt.Sprintf("%s:%d", h.Address, port)
+	client, err := ssh.Dial("tcp", addr, clientConfig)
 	if err != nil {
-		return nil, fmt.Errorf("SSH bağlantı hatası (%s): %v", addr, err)
+		return nil, fmt.Errorf("SSH bağlantısı kurulamadı: %w", err)
 	}
 
-	return &SSHTransport{Client: client, Config: hostConfig}, nil
-}
-
-func (t *SSHTransport) RunRemoteSecure(cmd string, sudoPass string) error {
-	session, err := t.Client.NewSession()
-	if err != nil {
-		return err
-	}
-	defer session.Close()
-
-	session.Stdout = os.Stdout
-	session.Stderr = os.Stderr
-	return session.Run(cmd)
-}
-
-func (t *SSHTransport) Exec(cmd string) (string, error) {
-	session, err := t.Client.NewSession()
-	if err != nil {
-		return "", err
-	}
-	defer session.Close()
-
-	var stdoutBuf bytes.Buffer
-	session.Stdout = &stdoutBuf
-
-	if err := session.Run(cmd); err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(stdoutBuf.String()), nil
+	return &SSHTransport{client: client, host: h}, nil
 }
 
 func (t *SSHTransport) GetRemoteSystemInfo() (string, string, error) {
-	rawOS, err := t.Exec("uname -s")
+	osOut, err := t.CaptureRemoteOutput("uname -s")
 	if err != nil {
-		return "", "", fmt.Errorf("uzak OS tespit edilemedi: %v", err)
+		return "", "", err
 	}
+	remoteOS := strings.ToLower(strings.TrimSpace(osOut))
 
-	rawArch, err := t.Exec("uname -m")
+	archOut, err := t.CaptureRemoteOutput("uname -m")
 	if err != nil {
-		return "", "", fmt.Errorf("uzak mimari tespit edilemedi: %v", err)
+		return "", "", err
 	}
+	rawArch := strings.TrimSpace(archOut)
 
-	goOS := strings.ToLower(rawOS)
-	goArch := rawArch
-
+	remoteArch := "amd64"
 	switch rawArch {
 	case "x86_64":
-		goArch = "amd64"
-	case "aarch64", "armv8":
-		goArch = "arm64"
-	case "i386", "i686":
-		goArch = "386"
-	case "armv7l":
-		goArch = "arm"
+		remoteArch = "amd64"
+	case "aarch64", "arm64":
+		remoteArch = "arm64"
 	}
 
-	return goOS, goArch, nil
+	return remoteOS, remoteArch, nil
 }
 
-func (t *SSHTransport) CopyFile(localPath, remotePath string) error {
-	src, err := os.Open(localPath)
+func (t *SSHTransport) CopyFile(srcPath, destPath string) error {
+	f, err := os.Open(srcPath)
 	if err != nil {
 		return err
 	}
-	defer src.Close()
+	defer f.Close()
 
-	srcStat, err := src.Stat()
-	if err != nil {
-		return err
-	}
-
-	session, err := t.Client.NewSession()
+	stat, _ := f.Stat()
+	session, err := t.client.NewSession()
 	if err != nil {
 		return err
 	}
@@ -131,11 +85,57 @@ func (t *SSHTransport) CopyFile(localPath, remotePath string) error {
 	go func() {
 		w, _ := session.StdinPipe()
 		defer w.Close()
-		fmt.Fprintln(w, "C0755", srcStat.Size(), filepath.Base(remotePath))
-		io.Copy(w, src)
+		fmt.Fprintf(w, "C%04o %d %s\n", stat.Mode().Perm(), stat.Size(), "file")
+		io.Copy(w, f)
 		fmt.Fprint(w, "\x00")
 	}()
 
-	remoteDir := filepath.Dir(remotePath)
-	return session.Run(fmt.Sprintf("scp -t %s", remoteDir))
+	return session.Run(fmt.Sprintf("scp -t %s", destPath))
+}
+
+func (t *SSHTransport) CaptureRemoteOutput(cmd string) (string, error) {
+	session, err := t.client.NewSession()
+	if err != nil {
+		return "", err
+	}
+	defer session.Close()
+
+	var stdout bytes.Buffer
+	session.Stdout = &stdout
+	if err := session.Run(cmd); err != nil {
+		return "", err
+	}
+	return stdout.String(), nil
+}
+
+func (t *SSHTransport) RunRemoteSecure(cmd string, sudoPassword string) error {
+	session, err := t.client.NewSession()
+	if err != nil {
+		return err
+	}
+	defer session.Close()
+
+	session.Stdout = os.Stdout
+	session.Stderr = os.Stderr
+
+	if sudoPassword != "" {
+		in, err := session.StdinPipe()
+		if err != nil {
+			return err
+		}
+		if err := session.Start(fmt.Sprintf("sudo -S -p '' %s", cmd)); err != nil {
+			return err
+		}
+		fmt.Fprintln(in, sudoPassword)
+		return session.Wait()
+	}
+
+	return session.Run(cmd)
+}
+
+func (t *SSHTransport) Close() error {
+	if t.client != nil {
+		return t.client.Close()
+	}
+	return nil
 }
