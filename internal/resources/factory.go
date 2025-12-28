@@ -6,14 +6,14 @@ import (
 	"github.com/melih-ucgun/monarch/internal/config"
 )
 
-// New, konfigürasyondaki verileri alıp şablonları işler ve ilgili Resource nesnesini oluşturur.
 func New(r config.Resource, vars map[string]interface{}) (Resource, error) {
-	// 1. Şablonlama İşlemi (Path, Name, Content, Image gibi alanları işle)
+	// Şablonlama İşlemi
 	fieldsToProcess := map[string]*string{
 		"name":    &r.Name,
 		"path":    &r.Path,
 		"content": &r.Content,
 		"image":   &r.Image,
+		"target":  &r.Target, // Target alanını da şablonlayalım
 	}
 
 	for _, val := range fieldsToProcess {
@@ -27,7 +27,6 @@ func New(r config.Resource, vars map[string]interface{}) (Resource, error) {
 
 	canonicalID := r.Identify()
 
-	// 2. Kaynak tipine göre nesne üretimi
 	switch r.Type {
 	case "file":
 		return &FileResource{CanonicalID: canonicalID, ResourceName: r.Name, Path: r.Path, Content: r.Content}, nil
@@ -45,6 +44,12 @@ func New(r config.Resource, vars map[string]interface{}) (Resource, error) {
 			Env:         r.Env,
 			Volumes:     r.Volumes,
 			Engine:      GetContainerEngine(),
+		}, nil
+	case "symlink":
+		return &SymlinkResource{
+			CanonicalID: canonicalID,
+			Path:        r.Path,
+			Target:      r.Target,
 		}, nil
 	case "git":
 		return &GitResource{CanonicalID: canonicalID, URL: r.URL, Path: r.Path}, nil

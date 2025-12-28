@@ -9,7 +9,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Resource, YAML dosyasındaki her bir kaynağın tanımıdır.
 type Resource struct {
 	Type      string   `yaml:"type"`
 	Name      string   `yaml:"name"`
@@ -22,6 +21,9 @@ type Resource struct {
 	URL       string   `yaml:"url,omitempty"`
 	Command   string   `yaml:"command,omitempty"`
 
+	// Symlink ve File Spesifik Alanlar
+	Target string `yaml:"target,omitempty"` // Linkin işaret edeceği yer
+
 	// Konteyner Spesifik Alanlar
 	Image   string   `yaml:"image,omitempty"`
 	Ports   []string `yaml:"ports,omitempty"`
@@ -29,7 +31,6 @@ type Resource struct {
 	Volumes []string `yaml:"volumes,omitempty"`
 }
 
-// Identify, kaynağın benzersiz ID'sini döner.
 func (r *Resource) Identify() string {
 	if r.ID != "" {
 		return r.ID
@@ -37,7 +38,6 @@ func (r *Resource) Identify() string {
 	return fmt.Sprintf("%s:%s", r.Type, r.Name)
 }
 
-// Host, uzak sunucu bağlantı bilgileridir.
 type Host struct {
 	Name           string `yaml:"name"`
 	Address        string `yaml:"address"`
@@ -45,7 +45,7 @@ type Host struct {
 	Password       string `yaml:"password,omitempty"`
 	KeyPath        string `yaml:"key_path,omitempty"`
 	Passphrase     string `yaml:"passphrase,omitempty"`
-	BecomePassword string `yaml:"become_password,omitempty"` // Sudo şifresi alanı
+	BecomePassword string `yaml:"become_password,omitempty"`
 }
 
 type Config struct {
@@ -54,7 +54,6 @@ type Config struct {
 	Hosts     []Host                 `yaml:"hosts,omitempty"`
 }
 
-// LoadConfig, belirtilen yoldaki konfigürasyonu yükler ve şifreli verileri çözer.
 func LoadConfig(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -73,7 +72,6 @@ func LoadConfig(path string) (*Config, error) {
 	return &cfg, nil
 }
 
-// ResolveSecrets, age ile şifrelenmiş değişkenleri ve şifreleri çözer.
 func (c *Config) ResolveSecrets() error {
 	privKey := os.Getenv("MONARCH_KEY")
 	if privKey == "" {
