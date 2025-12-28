@@ -8,7 +8,7 @@ import (
 )
 
 type FileResource struct {
-	CanonicalID  string // Factory tarafından atanan kimlik
+	CanonicalID  string
 	ResourceName string
 	Path         string
 	Content      string
@@ -39,16 +39,27 @@ func (f *FileResource) Check() (bool, error) {
 	return bytes.Equal(currentContent, []byte(f.Content)), nil
 }
 
+func (f *FileResource) Diff() (string, error) {
+	current, err := os.ReadFile(f.Path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Sprintf("+++ %s (Yeni Dosya)\n%s", f.Path, f.Content), nil
+		}
+		return "", err
+	}
+
+	if string(current) != f.Content {
+		return fmt.Sprintf("--- %s (Mevcut)\n+++ %s (İstenen)\n@@ İçerik değişecek @@", f.Path, f.Path), nil
+	}
+
+	return "", nil
+}
+
 func (f *FileResource) Apply() error {
 	dir := filepath.Dir(f.Path)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("dizin oluşturulamadı %s: %w", dir, err)
 	}
 
-	err := os.WriteFile(f.Path, []byte(f.Content), 0o644)
-	if err != nil {
-		return fmt.Errorf("dosya yazılamadı %s: %w", f.Path, err)
-	}
-
-	return nil
+	return os.WriteFile(f.Path, []byte(f.Content), 0o644)
 }

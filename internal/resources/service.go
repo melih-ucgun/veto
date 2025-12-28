@@ -32,6 +32,19 @@ func (s *ServiceResource) Check() (bool, error) {
 	return (actualState == s.DesiredState) && (actualEnabled == s.Enabled), nil
 }
 
+func (s *ServiceResource) Diff() (string, error) {
+	isActiveCmd := exec.Command("systemctl", "is-active", s.ServiceName)
+	actualState := "stopped"
+	if err := isActiveCmd.Run(); err == nil {
+		actualState = "running"
+	}
+
+	if actualState != s.DesiredState {
+		return fmt.Sprintf("~ service: %s (%s -> %s)", s.ServiceName, actualState, s.DesiredState), nil
+	}
+	return "", nil
+}
+
 func (s *ServiceResource) Apply() error {
 	action := "start"
 	if s.DesiredState == "stopped" {
@@ -47,9 +60,5 @@ func (s *ServiceResource) Apply() error {
 		enableAction = "disable"
 	}
 
-	if err := exec.Command("sudo", "systemctl", enableAction, s.ServiceName).Run(); err != nil {
-		return fmt.Errorf("servis %s yapılamadı: %w", enableAction, err)
-	}
-
-	return nil
+	return exec.Command("sudo", "systemctl", enableAction, s.ServiceName).Run()
 }

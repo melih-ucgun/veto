@@ -16,7 +16,13 @@ func (e *ExecResource) ID() string {
 }
 
 func (e *ExecResource) Check() (bool, error) {
+	// Exec kaynakları doğası gereği her zaman 'uygulanması gereken' durumda kabul edilir.
 	return false, nil
+}
+
+// Diff, çalıştırılacak komutu gösterir.
+func (e *ExecResource) Diff() (string, error) {
+	return fmt.Sprintf("! exec: %s (Komut: %s)", e.Name, e.Command), nil
 }
 
 func (e *ExecResource) Apply() error {
