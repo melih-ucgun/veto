@@ -1,7 +1,5 @@
 resources:
-  - type: noop
-    name: test1
-  - type: noop
-    name: test2
   - type: file
-    name: example-dotfile
+    name: "bashrc-test"
+    path: "./test_home/.bashrc"
+    content: "alias ll='ls -la'\n# Managed by Monarch"

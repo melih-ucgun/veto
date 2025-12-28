@@ -7,8 +7,11 @@ import (
 )
 
 type Resource struct {
-	Type string `yaml:"type"`
-	Name string `yaml:"name"`
+	Type    string `yaml:"type"`
+	Name    string `yaml:"name"`
+	Path    string `yaml:"path,omitempty"`    // Dosya yolu
+	Content string `yaml:"content,omitempty"` // Dosya içeriği
+	State   string `yaml:"state,omitempty"`   // running/stopped (servisler için)
 }
 
 type Config struct {
