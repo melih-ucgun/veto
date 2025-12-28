@@ -4,16 +4,6 @@ vars:
   managed_by: "Monarch 🏰"
 
 resources:
-  - id: "bashrc_config"
-    type: file
-    name: "bashrc-custom"
-    path: "./test_home/.bashrc"
-    content: |
-      # {{ .managed_by }}
-      # Welcome, {{ .user }}!
-      alias {{ .alias_name }}='ls -la'
-
-resources1:
   - name: "my-web-app"
     type: "container"
     image: "nginx:latest"

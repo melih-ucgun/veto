@@ -1,0 +1,10 @@
+{
+  "resources": {
+    "bashrc_config": {
+      "id": "bashrc_config",
+      "type": "file",
+      "last_applied": "2025-12-28T21:09:24.580512726+03:00",
+      "success": true
+    }
+  }
+}

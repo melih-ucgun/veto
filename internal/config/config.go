@@ -21,8 +21,13 @@ type Resource struct {
 	URL       string   `yaml:"url,omitempty"`
 	Command   string   `yaml:"command,omitempty"`
 
+	// Meta Veriler (İzinler ve Sahiplik)
+	Mode  string `yaml:"mode,omitempty"`  // Örn: "0644"
+	Owner string `yaml:"owner,omitempty"` // Örn: "root" veya "1000"
+	Group string `yaml:"group,omitempty"` // Örn: "docker" veya "1000"
+
 	// Symlink ve File Spesifik Alanlar
-	Target string `yaml:"target,omitempty"` // Linkin işaret edeceği yer
+	Target string `yaml:"target,omitempty"`
 
 	// Konteyner Spesifik Alanlar
 	Image   string   `yaml:"image,omitempty"`
@@ -55,14 +60,18 @@ type Config struct {
 }
 
 func LoadConfig(path string) (*Config, error) {
-	data, err := os.ReadFile(path)
+	file, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("konfigürasyon dosyası açılamadı: %w", err)
 	}
+	defer file.Close()
 
 	var cfg Config
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return nil, err
+	decoder := yaml.NewDecoder(file)
+	decoder.KnownFields(true)
+
+	if err := decoder.Decode(&cfg); err != nil {
+		return nil, fmt.Errorf("YAML ayrıştırma hatası (şemaya uymuyor): %w", err)
 	}
 
 	if err := cfg.ResolveSecrets(); err != nil {

@@ -7,13 +7,16 @@ import (
 )
 
 func New(r config.Resource, vars map[string]interface{}) (Resource, error) {
-	// Şablonlama İşlemi
+	// Şablonlama işlemi (name, path, content, mode vb. için)
 	fieldsToProcess := map[string]*string{
 		"name":    &r.Name,
 		"path":    &r.Path,
 		"content": &r.Content,
 		"image":   &r.Image,
-		"target":  &r.Target, // Target alanını da şablonlayalım
+		"target":  &r.Target,
+		"mode":    &r.Mode,
+		"owner":   &r.Owner,
+		"group":   &r.Group,
 	}
 
 	for _, val := range fieldsToProcess {
@@ -29,7 +32,16 @@ func New(r config.Resource, vars map[string]interface{}) (Resource, error) {
 
 	switch r.Type {
 	case "file":
-		return &FileResource{CanonicalID: canonicalID, ResourceName: r.Name, Path: r.Path, Content: r.Content}, nil
+		return &FileResource{
+			CanonicalID:  canonicalID,
+			ResourceName: r.Name,
+			Path:         r.Path,
+			Content:      r.Content,
+			Mode:         r.Mode,
+			Owner:        r.Owner,
+			Group:        r.Group,
+		}, nil
+	// ... diğer caseler aynı kalacak
 	case "package":
 		return &PackageResource{CanonicalID: canonicalID, PackageName: r.Name, State: r.State, Provider: GetDefaultProvider()}, nil
 	case "service":
