@@ -16,12 +16,16 @@ type EngineOptions struct {
 type Reconciler struct {
 	Config *config.Config
 	Opts   EngineOptions
+	State  *State // State eklendi
 }
 
 func NewReconciler(cfg *config.Config, opts EngineOptions) *Reconciler {
+	// Engine başlarken state'i yükle
+	state, _ := LoadState()
 	return &Reconciler{
 		Config: cfg,
 		Opts:   opts,
+		State:  state,
 	}
 }
 
@@ -56,25 +60,26 @@ func (e *Reconciler) Run() (int, error) {
 			}
 		} else {
 			driftsFound++
-
-			// Değişiklik farkını al
 			diff, _ := res.Diff()
 
 			if e.Opts.DryRun {
 				slog.Info("DRY-RUN: Sapma tespit edildi", "id", res.ID())
 				if diff != "" {
-					// Diff çıktısını loga ekle
 					slog.Info("Planlanan değişiklik", "diff", diff)
 				}
 			} else {
 				if e.Opts.AutoHeal || !isWatchContext(e.Opts) {
 					slog.Info("Değişiklik uygulanıyor", "id", res.ID())
-					if diff != "" {
-						slog.Info("Fark", "content", diff)
+
+					applyErr := res.Apply()
+
+					// State güncelleme (başarılı veya başarısız fark etmez, denendiğini kaydediyoruz)
+					if e.State != nil {
+						e.State.UpdateResource(res.ID(), r.Type, applyErr == nil)
 					}
 
-					if err := res.Apply(); err != nil {
-						slog.Error("Uygulama hatası", "id", res.ID(), "error", err)
+					if applyErr != nil {
+						slog.Error("Uygulama hatası", "id", res.ID(), "error", applyErr)
 					} else {
 						slog.Info("Başarıyla uygulandı", "id", res.ID())
 					}
@@ -82,6 +87,15 @@ func (e *Reconciler) Run() (int, error) {
 					slog.Warn("SAPMA TESPİT EDİLDİ", "id", res.ID())
 				}
 			}
+		}
+	}
+
+	// Tüm işlemler bitince state dosyasını kaydet
+	if !e.Opts.DryRun && e.State != nil {
+		if err := e.State.Save(); err != nil {
+			slog.Error("State dosyası kaydedilemedi", "error", err)
+		} else {
+			slog.Debug("Sistem durumu kaydedildi.")
 		}
 	}
 
