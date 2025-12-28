@@ -1,45 +1,24 @@
 package resources
 
-import (
-	"fmt"
-	"os/exec"
-)
+type PackageManager interface {
+	IsInstalled(name string) (bool, error)
+	Install(name string) error
+	Remove(name string) error // Gelecek için "absent" durumu
+}
 
 type PackageResource struct {
 	PackageName string
-	State       string // "installed" veya "absent"
+	State       string         // "installed" veya "absent"
+	Provider    PackageManager // Modülerliği sağlayan kısım
 }
 
-func (p *PackageResource) ID() string {
-	return fmt.Sprintf("pkg:%s", p.PackageName)
-}
-
-// Check, paketin kurulu olup olmadığını kontrol eder.
 func (p *PackageResource) Check() (bool, error) {
-	// Arch Linux (CachyOS) için pacman -Q komutu kullanılır.
-	cmd := exec.Command("pacman", "-Q", p.PackageName)
-	err := cmd.Run()
-	if err != nil {
-		// Paket kurulu değilse pacman hata kodu döndürür.
-		return false, nil
-	}
-	return true, nil
+	return p.Provider.IsInstalled(p.PackageName)
 }
 
-// Apply, paketi kurar.
 func (p *PackageResource) Apply() error {
-	fmt.Printf("📦 Installing package: %s...\n", p.PackageName)
-
-	// -S: Kur, --noconfirm: Onay sormadan devam et.
-	// NOT: Bu işlem genellikle sudo yetkisi gerektirir.
-	cmd := exec.Command("sudo", "pacman", "-S", "--noconfirm", p.PackageName)
-
-	// Çıktıyı terminalde görmek istersen:
-	// cmd.Stdout = os.Stdout
-	// cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("paket kurulumu başarısız: %w", err)
+	if p.State == "installed" || p.State == "" {
+		return p.Provider.Install(p.PackageName)
 	}
 	return nil
 }

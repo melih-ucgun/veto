@@ -42,6 +42,7 @@ var applyCmd = &cobra.Command{
 				res = &resources.PackageResource{
 					PackageName: r.Name,
 					State:       r.State,
+					Provider:    resources.GetDefaultProvider(), // Otomatik seçim
 				}
 			case "service":
 				res = &resources.ServiceResource{
