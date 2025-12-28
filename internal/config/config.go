@@ -25,8 +25,9 @@ type Host struct {
 }
 
 type Config struct {
-	Resources []Resource `yaml:"resources"`
-	Hosts     []Host     `yaml:"hosts,omitempty"` // Sunucu listesi
+	Vars      map[string]interface{} `yaml:"vars,omitempty"` // Global değişkenler
+	Resources []Resource             `yaml:"resources"`
+	Hosts     []Host                 `yaml:"hosts,omitempty"`
 }
 
 func LoadConfig(path string) (*Config, error) {

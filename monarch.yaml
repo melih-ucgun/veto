@@ -1,13 +1,14 @@
+vars:
+  user: "melih"
+  alias_name: "ll"
+  managed_by: "Monarch 🏰"
+
 resources:
-  - type: file
-    name: "bashrc-test"
+  - id: "bashrc_config"
+    type: file
+    name: "bashrc-custom"
     path: "./test_home/.bashrc"
-    content: "alias ll='ls -la'\n# Managed by Monarch"
-
-  - type: package
-    name: "neovim"
-
-  - type: service 
-    name: "bluetooth"
-    state: "running"
-    enabled: true
+    content: |
+      # {{ .managed_by }}
+      # Welcome, {{ .user }}!
+      alias {{ .alias_name }}='ls -la'
