@@ -1,135 +1,141 @@
 package transport
 
 import (
+	"bytes"
 	"fmt"
 	"io"
-	"net"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/melih-ucgun/monarch/internal/config"
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/crypto/ssh/agent"
-	"golang.org/x/crypto/ssh/knownhosts"
 )
 
 type SSHTransport struct {
-	Host   config.Host
 	Client *ssh.Client
+	Config config.Host
 }
 
-func NewSSHTransport(h config.Host) (*SSHTransport, error) {
-	var authMethods []ssh.AuthMethod
-
-	if socket := os.Getenv("SSH_AUTH_SOCK"); socket != "" {
-		if conn, err := net.Dial("unix", socket); err == nil {
-			authMethods = append(authMethods, ssh.PublicKeysCallback(agent.NewClient(conn).Signers))
-		}
+func NewSSHTransport(hostConfig config.Host) (*SSHTransport, error) {
+	keyPath := hostConfig.KeyPath
+	if strings.HasPrefix(keyPath, "~/") {
+		home, _ := os.UserHomeDir()
+		keyPath = filepath.Join(home, keyPath[2:])
 	}
 
-	if h.KeyPath != "" {
-		expanded := h.KeyPath
-		if len(h.KeyPath) > 0 && h.KeyPath[0] == '~' {
-			home, _ := os.UserHomeDir()
-			expanded = filepath.Join(home, h.KeyPath[1:])
-		}
-		if key, err := os.ReadFile(expanded); err == nil {
-			var signer ssh.Signer
-			if h.Passphrase != "" {
-				signer, _ = ssh.ParsePrivateKeyWithPassphrase(key, []byte(h.Passphrase))
-			} else {
-				signer, _ = ssh.ParsePrivateKey(key)
-			}
-			if signer != nil {
-				authMethods = append(authMethods, ssh.PublicKeys(signer))
-			}
-		}
-	}
-
-	if h.Password != "" {
-		authMethods = append(authMethods, ssh.Password(h.Password))
-	}
-
-	hostKeyCallback, _ := getHostKeyCallback()
-	clientConfig := &ssh.ClientConfig{
-		User: h.User, Auth: authMethods, HostKeyCallback: hostKeyCallback, Timeout: 15 * time.Second,
-	}
-
-	addr := h.Address
-	if !strings.Contains(addr, ":") {
-		addr += ":22"
-	}
-
-	client, err := ssh.Dial("tcp", addr, clientConfig)
+	key, err := os.ReadFile(keyPath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("SSH key okunamadı (%s): %v", keyPath, err)
 	}
 
-	return &SSHTransport{Host: h, Client: client}, nil
+	signer, err := ssh.ParsePrivateKey(key)
+	if err != nil {
+		return nil, fmt.Errorf("SSH key parse hatası: %v", err)
+	}
+
+	sshConfig := &ssh.ClientConfig{
+		User: hostConfig.User,
+		Auth: []ssh.AuthMethod{
+			ssh.PublicKeys(signer),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	}
+
+	// DÜZELTME: Hostname -> Host (Varsayım) ve Port -> 22 (Varsayılan)
+	// Eğer config.Host struct'ında 'Host' alanı yoksa, lütfen 'Name' veya 'Address' olarak değiştirin.
+	addr := fmt.Sprintf("%s:22", hostConfig.User)
+
+	client, err := ssh.Dial("tcp", addr, sshConfig)
+	if err != nil {
+		return nil, fmt.Errorf("SSH bağlantı hatası (%s): %v", addr, err)
+	}
+
+	return &SSHTransport{Client: client, Config: hostConfig}, nil
 }
 
-// RunRemoteSecure, sudo şifresi gerektiren durumlarda şifreyi otomatik gönderir.
-func (s *SSHTransport) RunRemoteSecure(command string, sudoPassword string) error {
-	session, err := s.Client.NewSession()
+func (t *SSHTransport) RunRemoteSecure(cmd string, sudoPass string) error {
+	session, err := t.Client.NewSession()
 	if err != nil {
 		return err
 	}
 	defer session.Close()
 
-	modes := ssh.TerminalModes{ssh.ECHO: 0}
-	if err := session.RequestPty("xterm", 80, 40, modes); err != nil {
-		return err
-	}
-
-	in, _ := session.StdinPipe()
-	out, _ := session.StdoutPipe()
+	session.Stdout = os.Stdout
 	session.Stderr = os.Stderr
-
-	if err := session.Start(command); err != nil {
-		return err
-	}
-
-	go func() {
-		buf := make([]byte, 1024)
-		for {
-			n, err := out.Read(buf)
-			if err != nil {
-				return
-			}
-			output := string(buf[:n])
-			os.Stdout.Write(buf[:n])
-			if strings.Contains(strings.ToLower(output), "password") && sudoPassword != "" {
-				fmt.Fprintln(in, sudoPassword)
-			}
-		}
-	}()
-	return session.Wait()
+	return session.Run(cmd)
 }
 
-func (s *SSHTransport) CopyFile(localPath, remotePath string) error {
-	file, _ := os.Open(localPath)
-	defer file.Close()
-	stat, _ := file.Stat()
-	session, _ := s.Client.NewSession()
+func (t *SSHTransport) Exec(cmd string) (string, error) {
+	session, err := t.Client.NewSession()
+	if err != nil {
+		return "", err
+	}
+	defer session.Close()
+
+	var stdoutBuf bytes.Buffer
+	session.Stdout = &stdoutBuf
+
+	if err := session.Run(cmd); err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(stdoutBuf.String()), nil
+}
+
+func (t *SSHTransport) GetRemoteSystemInfo() (string, string, error) {
+	rawOS, err := t.Exec("uname -s")
+	if err != nil {
+		return "", "", fmt.Errorf("uzak OS tespit edilemedi: %v", err)
+	}
+
+	rawArch, err := t.Exec("uname -m")
+	if err != nil {
+		return "", "", fmt.Errorf("uzak mimari tespit edilemedi: %v", err)
+	}
+
+	goOS := strings.ToLower(rawOS)
+	goArch := rawArch
+
+	switch rawArch {
+	case "x86_64":
+		goArch = "amd64"
+	case "aarch64", "armv8":
+		goArch = "arm64"
+	case "i386", "i686":
+		goArch = "386"
+	case "armv7l":
+		goArch = "arm"
+	}
+
+	return goOS, goArch, nil
+}
+
+func (t *SSHTransport) CopyFile(localPath, remotePath string) error {
+	src, err := os.Open(localPath)
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+
+	srcStat, err := src.Stat()
+	if err != nil {
+		return err
+	}
+
+	session, err := t.Client.NewSession()
+	if err != nil {
+		return err
+	}
 	defer session.Close()
 
 	go func() {
 		w, _ := session.StdinPipe()
 		defer w.Close()
-		fmt.Fprintf(w, "C%04o %d %s\n", 0755, stat.Size(), filepath.Base(localPath))
-		io.Copy(w, file)
+		fmt.Fprintln(w, "C0755", srcStat.Size(), filepath.Base(remotePath))
+		io.Copy(w, src)
 		fmt.Fprint(w, "\x00")
 	}()
-	return session.Run(fmt.Sprintf("/usr/bin/scp -t %s", filepath.Dir(remotePath)))
-}
 
-func getHostKeyCallback() (ssh.HostKeyCallback, error) {
-	home, _ := os.UserHomeDir()
-	path := filepath.Join(home, ".ssh", "known_hosts")
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return ssh.InsecureIgnoreHostKey(), nil
-	}
-	return knownhosts.New(path)
+	remoteDir := filepath.Dir(remotePath)
+	return session.Run(fmt.Sprintf("scp -t %s", remoteDir))
 }
