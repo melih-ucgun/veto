@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/melih-ucgun/monarch/internal/config"
-	"github.com/melih-ucgun/monarch/internal/resources"
+	"github.com/melih-ucgun/monarch/internal/engine"
 	"github.com/melih-ucgun/monarch/internal/transport"
 	"github.com/spf13/cobra"
 )
@@ -88,54 +88,22 @@ func executeRemote(hostName, configFile string, dryRun bool, cfg *config.Config)
 }
 
 func executeLocal(configFile string, dryRun bool, cfg *config.Config) {
-	sortedResources, err := config.SortResources(cfg.Resources)
-	if err != nil {
-		fmt.Printf("❌ Bağımlılık Hatası: %v\n", err)
-		os.Exit(1)
-	}
-
 	if dryRun {
 		fmt.Println("🔍 [DRY-RUN MODU] Sisteme gerçek bir değişiklik uygulanmayacak.")
 	}
 
 	fmt.Println("🏰 Monarch sisteminize hükmediyor...")
 	fmt.Printf("📂 Kullanılan dosya: %s\n", configFile)
-	fmt.Printf("🔍 %d kaynak kontrol edilecek\n\n", len(sortedResources))
 
-	for _, r := range sortedResources {
-		// Fabrikayı (Factory) kullanarak kaynağı oluşturuyoruz
-		res, err := resources.New(r, cfg.Vars)
-		if err != nil {
-			fmt.Printf("⚠️ [%s] Kaynak oluşturma hatası: %v\n", r.Name, err)
-			continue
-		}
+	// Engine'i kullanarak çalıştırıyoruz
+	recon := engine.NewReconciler(cfg, engine.EngineOptions{
+		DryRun: dryRun,
+	})
 
-		// noop tipi nil döndüğü için kontrol edip atlıyoruz
-		if res == nil {
-			fmt.Printf("ℹ️ [%s] atlanıyor (tip: %s)\n", r.Name, r.Type)
-			continue
-		}
-
-		isInState, err := res.Check()
-		if err != nil {
-			fmt.Printf("❌ [%s] Kontrol başarısız: %v\n", res.ID(), err)
-			continue
-		}
-
-		if isInState {
-			fmt.Printf("✅ [%s] zaten istenen durumda.\n", res.ID())
-		} else {
-			if dryRun {
-				fmt.Printf("🔍 [DRY-RUN] [%s] senkronize değil. Değişiklik uygulanabilir.\n", res.ID())
-			} else {
-				fmt.Printf("🛠️ [%s] senkronize değil. Uygulanıyor...\n", res.ID())
-				if err := res.Apply(); err != nil {
-					fmt.Printf("❌ [%s] Uygulama hatası: %v\n", res.ID(), err)
-				} else {
-					fmt.Printf("✨ [%s] başarıyla uygulandı!\n", res.ID())
-				}
-			}
-		}
+	_, err := recon.Run()
+	if err != nil {
+		fmt.Printf("❌ Çalıştırma hatası: %v\n", err)
+		os.Exit(1)
 	}
 
 	fmt.Println("\n🏁 Monarch işlemi tamamladı.")

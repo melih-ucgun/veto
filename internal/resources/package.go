@@ -1,50 +1,34 @@
 package resources
 
-import "os/exec"
-
+// PackageManager, farklı işletim sistemlerindeki paket yöneticileri (pacman, apt, brew vb.)
+// için ortak bir arayüz tanımlar.
 type PackageManager interface {
 	IsInstalled(name string) (bool, error)
 	Install(name string) error
 	Remove(name string) error
 }
 
+// PackageResource, bir paketin sistemdeki varlığını ve durumunu temsil eder.
 type PackageResource struct {
 	PackageName string
 	State       string
 	Provider    PackageManager
 }
 
-// ID metodunu panic yerine gerçek bir ID dönecek şekilde düzeltiyoruz
+// ID, kaynağın benzersiz kimliğini döner (Örn: pkg:neovim).
 func (p *PackageResource) ID() string {
 	return "pkg:" + p.PackageName
 }
 
+// Check, paketin şu anki durumunu kontrol eder.
 func (p *PackageResource) Check() (bool, error) {
 	return p.Provider.IsInstalled(p.PackageName)
 }
 
+// Apply, paketi istenen duruma (kurulu veya silinmiş) getirir.
 func (p *PackageResource) Apply() error {
-	if p.State == "installed" || p.State == "" {
-		return p.Provider.Install(p.PackageName)
+	if p.State == "absent" {
+		return p.Provider.Remove(p.PackageName)
 	}
-	return nil
-}
-
-// --- OTOMATİK ALGILAMA MEKANİZMASI ---
-func GetDefaultProvider() PackageManager {
-	// 1. Sistemde pacman var mı kontrol et (CachyOS/Arch için)
-	if _, err := exec.LookPath("pacman"); err == nil {
-		return &PacmanProvider{}
-	}
-	if _, err := exec.LookPath("paru"); err == nil {
-		return &ParuProvider{}
-	}
-	if _, err := exec.LookPath("yay"); err == nil {
-		return &YayProvider{}
-	}
-	if _, err := exec.LookPath("apt-get"); err == nil {
-		// return &AptProvider{} // İleride buraya AptProvider eklenebilir
-	}
-
-	return nil
+	return p.Provider.Install(p.PackageName)
 }

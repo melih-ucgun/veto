@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/melih-ucgun/monarch/internal/config"
-	"github.com/melih-ucgun/monarch/internal/resources"
+	"github.com/melih-ucgun/monarch/internal/engine"
 	"github.com/spf13/cobra"
 )
 
@@ -30,6 +30,7 @@ var watchCmd = &cobra.Command{
 		ticker := time.NewTicker(time.Duration(interval) * time.Second)
 		defer ticker.Stop()
 
+		// İlk döngüyü hemen çalıştır
 		runWatchCycle(configFile, autoHeal)
 
 		for {
@@ -45,7 +46,7 @@ var watchCmd = &cobra.Command{
 }
 
 func runWatchCycle(configFile string, autoHeal bool) {
-	fmt.Printf("[%s] 🔍 Kontrol ediliyor...\n", time.Now().Format("15:04:05"))
+	engine.LogTimestamp("🔍 Kontrol ediliyor...")
 
 	cfg, err := config.LoadConfig(configFile)
 	if err != nil {
@@ -53,43 +54,20 @@ func runWatchCycle(configFile string, autoHeal bool) {
 		return
 	}
 
-	sortedResources, err := config.SortResources(cfg.Resources)
+	// Engine üzerinden uzlaştırma yapıyoruz
+	recon := engine.NewReconciler(cfg, engine.EngineOptions{
+		AutoHeal: autoHeal,
+		DryRun:   false,
+	})
+
+	drifts, err := recon.Run()
 	if err != nil {
-		fmt.Printf("❌ Sıralama hatası: %v\n", err)
+		fmt.Printf("❌ Uzlaştırma hatası: %v\n", err)
 		return
 	}
 
-	driftsFound := 0
-
-	for _, r := range sortedResources {
-		// apply.go ile aynı fabrika metodunu kullanıyoruz
-		res, err := resources.New(r, cfg.Vars)
-		if err != nil || res == nil {
-			continue
-		}
-
-		isInState, err := res.Check()
-		if err != nil {
-			continue
-		}
-
-		if !isInState {
-			driftsFound++
-			fmt.Printf("⚠️  SAPMA TESPİT EDİLDİ: [%s]\n", res.ID())
-
-			if autoHeal {
-				fmt.Printf("   🛠️  Otomatik düzeltiliyor...\n")
-				if err := res.Apply(); err != nil {
-					fmt.Printf("   ❌ Düzeltme hatası: %v\n", err)
-				} else {
-					fmt.Printf("   ✨ Düzeldi!\n")
-				}
-			}
-		}
-	}
-
-	if driftsFound > 0 && !autoHeal {
-		fmt.Printf("📢 Toplam %d sapma bulundu. Düzelmek için 'monarch apply' kullanın.\n", driftsFound)
+	if drifts > 0 && !autoHeal {
+		fmt.Printf("📢 Toplam %d sapma bulundu. Düzelmek için 'monarch apply' kullanın.\n", drifts)
 	}
 }
 
