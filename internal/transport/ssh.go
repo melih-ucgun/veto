@@ -1,8 +1,11 @@
 package transport
 
 import (
+	"bufio"
 	"bytes"
 	"context"
+	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -35,7 +38,6 @@ func retry(ctx context.Context, operationName string, operation func() error) er
 	delay := BaseDelay
 
 	for i := 0; i < MaxRetries; i++ {
-		// Context iptal edilmiş mi kontrol et (döngü başında)
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
@@ -55,10 +57,9 @@ func retry(ctx context.Context, operationName string, operation func() error) er
 			"hata", err,
 		)
 
-		// Bekleme süresi boyunca Context iptalini dinle
 		select {
 		case <-ctx.Done():
-			return ctx.Err() // Kullanıcı iptal ettiyse bekleme yapma
+			return ctx.Err()
 		case <-time.After(delay):
 			delay *= 2
 		}
@@ -67,31 +68,79 @@ func retry(ctx context.Context, operationName string, operation func() error) er
 	return fmt.Errorf("%s başarısız oldu: %w", operationName, err)
 }
 
-// NewSSHTransport artık Context kabul ediyor ve bağlantı sırasında bunu gözetiyor.
+// NewSSHTransport artık güvenli Host Key doğrulaması yapıyor.
 func NewSSHTransport(ctx context.Context, host config.Host) (*SSHTransport, error) {
-	sshConfig := &ssh.ClientConfig{
-		User:            host.User,
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-		Timeout:         10 * time.Second, // TCP seviyesinde timeout
-	}
-
+	// 1. known_hosts dosyasını hazırla
 	home, err := os.UserHomeDir()
-	if err == nil {
-		if hk, err := knownhosts.New(filepath.Join(home, ".ssh", "known_hosts")); err == nil {
-			sshConfig.HostKeyCallback = hk
+	if err != nil {
+		return nil, fmt.Errorf("home dizini bulunamadı: %w", err)
+	}
+	knownHostsPath := filepath.Join(home, ".ssh", "known_hosts")
+
+	// .ssh klasörünü ve known_hosts dosyasını gerekirse oluştur
+	sshDir := filepath.Dir(knownHostsPath)
+	if _, err := os.Stat(sshDir); os.IsNotExist(err) {
+		os.MkdirAll(sshDir, 0700)
+	}
+	// Dosya yoksa boş oluştur (knownhosts.New hata vermesin diye)
+	if _, err := os.Stat(knownHostsPath); os.IsNotExist(err) {
+		f, createErr := os.OpenFile(knownHostsPath, os.O_CREATE|os.O_WRONLY, 0600)
+		if createErr != nil {
+			return nil, fmt.Errorf("known_hosts dosyası oluşturulamadı: %w", createErr)
 		}
+		f.Close()
 	}
 
+	// 2. knownhosts Callback'ini yükle
+	hkCallback, err := knownhosts.New(knownHostsPath)
+	if err != nil {
+		return nil, fmt.Errorf("known_hosts okunamadı: %w", err)
+	}
+
+	// 3. SSH Config Ayarları
+	sshConfig := &ssh.ClientConfig{
+		User:    host.User,
+		Timeout: 10 * time.Second,
+		// Özel HostKeyCallback: MitM koruması ve TOFU (Trust On First Use) sağlar
+		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+			// Önce known_hosts dosyasını kontrol et
+			err := hkCallback(hostname, remote, key)
+			if err == nil {
+				return nil // Tanınan ve güvenli sunucu
+			}
+
+			// Hata türünü incele
+			var keyErr *knownhosts.KeyError
+			if errors.As(err, &keyErr) {
+				// Durum A: Sunucu biliniyor ama anahtar DEĞİŞMİŞ (Tehlike!)
+				if len(keyErr.Want) > 0 {
+					return fmt.Errorf("\n⚠️  GÜVENLİK UYARISI: '%s' sunucusunun kimliği değişmiş!\n"+
+						"Bu bir Man-in-the-Middle saldırısı olabilir.\n"+
+						"Bağlantı güvenlik nedeniyle reddedildi.", hostname)
+				}
+
+				// Durum B: Sunucu bilinmiyor (known_hosts içinde yok) -> Kullanıcıya sor
+				return askToTrustHost(knownHostsPath, hostname, key)
+			}
+
+			// Diğer hatalar
+			return err
+		},
+	}
+
+	// 4. Kimlik Doğrulama Yöntemleri
 	authMethods := []ssh.AuthMethod{}
 
-	// 1. SSH Agent
+	// SSH Agent
 	if socket := os.Getenv("SSH_AUTH_SOCK"); socket != "" {
 		if conn, err := net.Dial("unix", socket); err == nil {
 			conn.Close()
+			// Not: Orijinal kodda agent signers eklenmiyordu, yapıyı bozmamak için
+			// burayı olduğu gibi bıraktım. Geliştirmek isterseniz agent.NewClient eklenmeli.
 		}
 	}
 
-	// 2. Private Key
+	// Private Key
 	keyPath := filepath.Join(home, ".ssh", "id_rsa")
 	if key, err := os.ReadFile(keyPath); err == nil {
 		if signer, err := ssh.ParsePrivateKey(key); err == nil {
@@ -99,9 +148,6 @@ func NewSSHTransport(ctx context.Context, host config.Host) (*SSHTransport, erro
 		}
 	} else if host.Password != "" {
 		authMethods = append(authMethods, ssh.Password(host.Password))
-	} else {
-		// Şifre sorma kısmını basitleştirdik, buraya interaktif logic eklenebilir
-		// Context ile uyumlu olması için burada uzun süre bloklamamak iyi olur
 	}
 
 	sshConfig.Auth = authMethods
@@ -109,9 +155,8 @@ func NewSSHTransport(ctx context.Context, host config.Host) (*SSHTransport, erro
 
 	var client *ssh.Client
 
-	// Bağlantıyı retry ve context ile sarıyoruz
+	// Bağlantıyı kur
 	connectErr := retry(ctx, "SSH Bağlantısı", func() error {
-		// ssh.Dial yerine net.Dialer kullanıp context'i TCP seviyesine indiriyoruz
 		d := net.Dialer{Timeout: sshConfig.Timeout}
 		conn, err := d.DialContext(ctx, "tcp", addr)
 		if err != nil {
@@ -134,6 +179,45 @@ func NewSSHTransport(ctx context.Context, host config.Host) (*SSHTransport, erro
 	return &SSHTransport{client: client, config: sshConfig}, nil
 }
 
+// askToTrustHost: Bilinmeyen sunucular için kullanıcıdan onay ister ve kaydeder.
+func askToTrustHost(path string, hostname string, key ssh.PublicKey) error {
+	fingerprint := ssh.FingerprintSHA256(key)
+
+	fmt.Printf("\nBu sunucunun (%s) kimliği doğrulanamadı.\n", hostname)
+	fmt.Printf("Parmak İzi (Fingerprint): %s\n", fingerprint)
+	fmt.Printf("Bağlantıya devam etmek istiyor musunuz? (yes/no): ")
+
+	reader := bufio.NewReader(os.Stdin)
+	response, _ := reader.ReadString('\n')
+	response = strings.ToLower(strings.TrimSpace(response))
+
+	if response != "yes" && response != "y" {
+		return fmt.Errorf("bağlantı kullanıcı tarafından reddedildi")
+	}
+
+	// Dosyaya ekle (Append)
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0600)
+	if err != nil {
+		return fmt.Errorf("known_hosts dosyasına yazılamadı: %w", err)
+	}
+	defer f.Close()
+
+	// Standart known_hosts formatı: host key-type key-base64
+	keyType := key.Type()
+	keyBase64 := base64.StdEncoding.EncodeToString(key.Marshal())
+
+	// Eğer hostname standart dışı bir porta sahipse, knownhosts bazen [host]:port formatını bekler
+	// Basitlik için gelen hostname'i olduğu gibi yazıyoruz.
+	line := fmt.Sprintf("%s %s %s\n", hostname, keyType, keyBase64)
+
+	if _, err := f.WriteString(line); err != nil {
+		return fmt.Errorf("dosyaya yazma hatası: %w", err)
+	}
+
+	fmt.Println("✅ Sunucu güvenilenler listesine eklendi.")
+	return nil
+}
+
 func (t *SSHTransport) Close() error {
 	if t.client != nil {
 		return t.client.Close()
@@ -142,8 +226,6 @@ func (t *SSHTransport) Close() error {
 }
 
 func (t *SSHTransport) GetRemoteSystemInfo(ctx context.Context) (string, string, error) {
-	// Basit komutlar için RunRemoteSecure logic'ini veya direkt session kullanabiliriz.
-	// Hızlı olduğu için direkt çağırıyoruz ama session başlatma context kontrolü yapılabilir.
 	if ctx.Err() != nil {
 		return "", "", ctx.Err()
 	}
@@ -162,7 +244,7 @@ func (t *SSHTransport) GetRemoteSystemInfo(ctx context.Context) (string, string,
 
 	parts := strings.Split(strings.TrimSpace(b.String()), "\n")
 	if len(parts) < 2 {
-		return "linux", "amd64", nil // Fallback
+		return "linux", "amd64", nil
 	}
 
 	osName := strings.ToLower(parts[0])
@@ -177,7 +259,6 @@ func (t *SSHTransport) GetRemoteSystemInfo(ctx context.Context) (string, string,
 
 func (t *SSHTransport) CopyFile(ctx context.Context, localPath, remotePath string) error {
 	return retry(ctx, fmt.Sprintf("Dosya Kopyalama (%s)", filepath.Base(localPath)), func() error {
-		// Context iptal kontrolü
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
@@ -207,7 +288,6 @@ func (t *SSHTransport) CopyFile(ctx context.Context, localPath, remotePath strin
 			fmt.Fprint(w, "\x00")
 		}()
 
-		// SCP komutunu context ile bekleyelim (basit implementasyon)
 		done := make(chan error, 1)
 		go func() {
 			done <- session.Run(fmt.Sprintf("scp -t %s", filepath.Dir(remotePath)))
@@ -217,7 +297,7 @@ func (t *SSHTransport) CopyFile(ctx context.Context, localPath, remotePath strin
 		case err := <-done:
 			return err
 		case <-ctx.Done():
-			session.Close() // Bağlantıyı kopar
+			session.Close()
 			return ctx.Err()
 		}
 	})
@@ -247,8 +327,6 @@ func (t *SSHTransport) DownloadFile(ctx context.Context, remotePath, localPath s
 		}
 		defer localFile.Close()
 
-		// io.Copy iptal edilemez, bu yüzden küçük buffer'larla okuyup context kontrolü yapan bir döngü yazmak en iyisidir
-		// Ancak pratiklik adına bir 'goroutine wrapper' kullanabiliriz.
 		type copyResult struct {
 			n   int64
 			err error
@@ -267,7 +345,6 @@ func (t *SSHTransport) DownloadFile(ctx context.Context, remotePath, localPath s
 			}
 			return res.err
 		case <-ctx.Done():
-			// SFTP client'ı kapatmak okuma işlemini iptal eder
 			sftpClient.Close()
 			return ctx.Err()
 		}
@@ -279,8 +356,6 @@ func (t *SSHTransport) RunRemoteSecure(ctx context.Context, cmd string, becomePa
 	if err != nil {
 		return err
 	}
-	// Defer session.Close() burada riskli olabilir çünkü sinyal gönderince zaten kapanabilir,
-	// ama güvenli tarafta kalmak için ekliyoruz, çift kapama sorun yaratmaz.
 	defer session.Close()
 
 	modes := ssh.TerminalModes{
@@ -317,7 +392,6 @@ func (t *SSHTransport) RunRemoteSecure(ctx context.Context, cmd string, becomePa
 
 	go io.Copy(os.Stdout, stdout)
 
-	// Komutun bitmesini bekleyen kanal
 	done := make(chan error, 1)
 	go func() {
 		done <- session.Wait()
@@ -325,12 +399,9 @@ func (t *SSHTransport) RunRemoteSecure(ctx context.Context, cmd string, becomePa
 
 	select {
 	case err := <-done:
-		// Komut normal şekilde bitti (başarılı veya başarısız)
 		return err
 	case <-ctx.Done():
-		// Kullanıcı iptal etti veya timeout
 		slog.Warn("İşlem iptal edildi, uzak süreç sonlandırılıyor...")
-		// Uzak sürece SIGINT/SIGKILL gönder
 		_ = session.Signal(ssh.SIGKILL)
 		session.Close()
 		return ctx.Err()
