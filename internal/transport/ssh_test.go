@@ -152,7 +152,7 @@ func TestSSHTransport_DownloadFile(t *testing.T) {
 		for req := range reqs {
 			if req.Type == "subsystem" && string(req.Payload[4:]) == "sftp" {
 				req.Reply(true, nil)
-				server, _ := sftp.NewRequestServer(channel, serverOptions...)
+				server, _ := sftp.NewServer(channel, serverOptions...)
 				if err := server.Serve(); err == io.EOF {
 					server.Close()
 				}
