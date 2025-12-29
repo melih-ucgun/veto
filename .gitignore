@@ -1,0 +1,3 @@
+# .gitignore dosyasına ekle:
+internal/engine/embedded/monarch-*
+!internal/engine/embedded/.keep

@@ -2,12 +2,11 @@ package engine
 
 import (
 	"context"
+	"embed"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"runtime"
 	"sync"
 	"time"
@@ -17,6 +16,9 @@ import (
 	"github.com/melih-ucgun/monarch/internal/transport"
 	"golang.org/x/sync/errgroup"
 )
+
+//go:embed embedded/*
+var embeddedBinaries embed.FS
 
 type EngineOptions struct {
 	DryRun     bool
@@ -144,22 +146,24 @@ func (e *Reconciler) runRemote(ctx context.Context) (int, error) {
 		return 0, err
 	}
 
-	// Binary yolunu çözümle (Gerekirse derle)
-	binaryPath, err := resolveBinaryPath(ctx, remoteOS, remoteArch)
+	// Binary yolunu çözümle (Embed edilmiş dosyalardan çıkar)
+	binaryPath, err := resolveBinaryPath(remoteOS, remoteArch)
 	if err != nil {
 		return 0, err
 	}
+	// Geçici dosyayı iş bitince temizlemek için defer (Local temizlik)
+	defer os.Remove(binaryPath)
 
 	timestamp := time.Now().Format("20060102150405")
 	remoteBinPath := fmt.Sprintf("/tmp/monarch-%s", timestamp)
 
 	// Binary'yi kopyala
-	slog.Info("Binary uzak sunucuya gönderiliyor...", "path", binaryPath)
+	slog.Info("Binary uzak sunucuya gönderiliyor...", "local_path", binaryPath, "remote_os", remoteOS)
 	if err := t.CopyFile(ctx, binaryPath, remoteBinPath); err != nil {
 		return 0, err
 	}
 
-	// --- TEMİZLİK (CLEANUP) ---
+	// --- TEMİZLİK (REMOTE CLEANUP) ---
 	defer func() {
 		cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -207,63 +211,45 @@ func (e *Reconciler) runRemote(ctx context.Context) (int, error) {
 	return 0, nil
 }
 
-// resolveBinaryPath: Hedef mimari için binary bulur, yoksa derlemeye çalışır.
-func resolveBinaryPath(ctx context.Context, targetOS, targetArch string) (string, error) {
-	// 1. Eğer hedef mimari, çalışan makineyle aynıysa kendi executable dosyasını kullan.
-	if targetOS == runtime.GOOS && targetArch == runtime.GOARCH {
-		return os.Executable()
-	}
-
-	// 2. Beklenen binary ismini belirle (örn: monarch-linux-amd64)
-	exePath, err := os.Executable()
-	if err != nil {
-		return "", fmt.Errorf("çalışan dosya yolu bulunamadı: %w", err)
-	}
-	exeDir := filepath.Dir(exePath)
+// resolveBinaryPath: Hedef mimari için gömülü binary'i geçici dizine çıkarır.
+func resolveBinaryPath(targetOS, targetArch string) (string, error) {
+	// 1. Eğer hedef mimari, çalışan makineyle aynıysa ve dev modundaysak (embed yoksa)
+	// Kendi executable dosyamızı kullanabiliriz. Ancak prodüksiyonda embed tercih edilir.
+	// Tutarlılık için önce embed kontrol edelim.
 
 	binaryName := fmt.Sprintf("monarch-%s-%s", targetOS, targetArch)
-	fullPath := filepath.Join(exeDir, binaryName)
+	embedPath := fmt.Sprintf("embedded/%s", binaryName)
 
-	// 3. Binary zaten var mı kontrol et
-	if _, err := os.Stat(fullPath); err == nil {
-		slog.Info("Hazır binary bulundu", "path", fullPath)
-		return fullPath, nil
-	}
-
-	// 4. Yoksa derlemeye çalış (Auto-Build)
-	slog.Info("Hedef mimari için binary bulunamadı, derleniyor...", "os", targetOS, "arch", targetArch)
-
-	if err := buildBinary(ctx, targetOS, targetArch, fullPath); err != nil {
-		// Derleme başarısızsa (Go yoksa veya kaynak kod yoksa) açıklayıcı hata dön.
-		return "", fmt.Errorf("otomatik derleme başarısız: %v\n"+
-			"Lütfen aşağıdaki komutu proje dizininde çalıştırıp tekrar deneyin:\n"+
-			"GOOS=%s GOARCH=%s go build -o %s .",
-			err, targetOS, targetArch, fullPath)
-	}
-
-	slog.Info("Derleme başarılı.", "path", fullPath)
-	return fullPath, nil
-}
-
-// buildBinary: 'go build' komutunu kullanarak çapraz derleme yapar.
-func buildBinary(ctx context.Context, osName, arch, outputPath string) error {
-	// Not: Bu komutun çalışması için sistemde 'go' yüklü olmalı ve
-	// komutun proje kök dizininde veya modül içinde çalıştırılması gerekir.
-
-	cmd := exec.CommandContext(ctx, "go", "build", "-o", outputPath, ".")
-
-	// Çapraz derleme ortam değişkenleri
-	cmd.Env = append(os.Environ(),
-		"GOOS="+osName,
-		"GOARCH="+arch,
-		"CGO_ENABLED=0", // Statik linkleme ve taşınabilirlik için
-	)
-
-	// Build çıktısını yakalamak hata ayıklama için önemlidir
-	output, err := cmd.CombinedOutput()
+	// 2. Gömülü dosya var mı kontrol et
+	content, err := embeddedBinaries.ReadFile(embedPath)
 	if err != nil {
-		return fmt.Errorf("%w, output: %s", err, string(output))
+		// Embed içinde yoksa ve localde çalışıyorsak (geliştirme ortamı), belki henüz 'make' çalıştırılmamıştır.
+		// Son çare olarak çalışan binary'yi (kendimizi) önerelim mi?
+		// Sadece OS/Arch tutuyorsa.
+		if targetOS == runtime.GOOS && targetArch == runtime.GOARCH {
+			slog.Warn("Gömülü binary bulunamadı, mevcut çalışan dosya kullanılıyor.", "missing", binaryName)
+			return os.Executable()
+		}
+
+		return "", fmt.Errorf("bu mimari için gömülü binary bulunamadı (%s). Lütfen 'make' komutu ile derleme yapın", binaryName)
 	}
 
-	return nil
+	// 3. Gömülü dosyayı geçici bir yere çıkar (Extract)
+	tempFile, err := os.CreateTemp("", binaryName+"-*")
+	if err != nil {
+		return "", fmt.Errorf("geçici dosya oluşturulamadı: %w", err)
+	}
+	defer tempFile.Close()
+
+	if _, err := tempFile.Write(content); err != nil {
+		return "", fmt.Errorf("binary diske yazılamadı: %w", err)
+	}
+
+	// Çalıştırılabilir yap
+	if err := tempFile.Chmod(0755); err != nil {
+		return "", fmt.Errorf("chmod hatası: %w", err)
+	}
+
+	slog.Info("Gömülü binary çıkarıldı", "path", tempFile.Name())
+	return tempFile.Name(), nil
 }
