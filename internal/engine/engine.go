@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sync"
@@ -173,15 +172,40 @@ func (e *Reconciler) runRemote() (int, error) {
 	return 0, nil
 }
 
+// internal/engine/engine.go
+
 func resolveBinaryPath(targetOS, targetArch string) (string, error) {
+	// 1. Senaryo: Hedef sistem ile mevcut sistem aynıysa (Örn: Linux/AMD64 -> Linux/AMD64)
+	// Kendi çalışan binary'mizi kullanırız.
 	if targetOS == runtime.GOOS && targetArch == runtime.GOARCH {
 		return os.Executable()
 	}
-	tempPath := filepath.Join(os.TempDir(), fmt.Sprintf("monarch-%s-%s", targetOS, targetArch))
-	cmd := exec.Command("go", "build", "-o", tempPath, ".")
-	cmd.Env = append(os.Environ(), "GOOS="+targetOS, "GOARCH="+targetArch, "CGO_ENABLED=0")
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return "", fmt.Errorf("derleme hatası: %s", string(out))
+
+	// 2. Senaryo: Hedef sistem farklı (Örn: Linux/AMD64 -> Linux/ARM64)
+	// Yanımızda hazır bulunması gereken binary dosyasının adını oluşturuyoruz.
+	// Örnek Beklenen Dosya Adı: monarch-linux-arm64
+	expectedBinaryName := fmt.Sprintf("monarch-%s-%s", targetOS, targetArch)
+
+	// Çalışan binary'nin bulunduğu dizini alıyoruz (böylece terminali nereden açtığınız fark etmez)
+	exePath, err := os.Executable()
+	if err != nil {
+		return "", fmt.Errorf("çalışan dosya yolu bulunamadı: %w", err)
 	}
-	return tempPath, nil
+	exeDir := filepath.Dir(exePath)
+
+	// Tam dosya yolunu oluşturuyoruz
+	fullPath := filepath.Join(exeDir, expectedBinaryName)
+
+	// 3. Kontrol: Bu dosya gerçekten var mı?
+	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+		return "", fmt.Errorf(
+			"HATA: Hedef sistem (%s/%s) için gerekli binary bulunamadı.\n"+
+				"Beklenen dosya: %s\n"+
+				"ÇÖZÜM: Lütfen ilgili mimari için derlenmiş 'monarch' dosyasını bu klasöre koyun.",
+			targetOS, targetArch, fullPath,
+		)
+	}
+
+	// Dosya varsa yolunu döndür
+	return fullPath, nil
 }
