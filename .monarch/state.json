@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "last_run": "2025-12-31T13:06:04.406276788+03:00",
+  "last_run": "2025-12-31T13:10:29.836478293+03:00",
   "resources": {
     "exec:main-exec": {
       "id": "exec:main-exec",
@@ -8,6 +8,15 @@
       "type": "exec",
       "state": "",
       "last_applied": "2025-12-31T13:06:04.406275295+03:00",
+      "status": "success",
+      "metadata": {}
+    },
+    "exec:secret-echo": {
+      "id": "exec:secret-echo",
+      "name": "secret-echo",
+      "type": "exec",
+      "state": "",
+      "last_applied": "2025-12-31T13:10:29.836473224+03:00",
       "status": "success",
       "metadata": {}
     },
