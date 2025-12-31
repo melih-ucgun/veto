@@ -8,6 +8,7 @@ import (
 
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 
 	"github.com/melih-ucgun/monarch/internal/config"
 	"github.com/melih-ucgun/monarch/internal/core"
@@ -52,6 +53,15 @@ func runApply(configFile string, isDryRun bool) error {
 
 	// 1. Detect System
 	ctx := system.Detect(isDryRun)
+
+	// 1.5 Load System Profile (if exists)
+	if data, err := os.ReadFile(".monarch/system.yaml"); err == nil {
+		pterm.Info.Println("Loading system profile from .monarch/system.yaml")
+		// Override detected context with saved profile
+		if err := yaml.Unmarshal(data, ctx); err != nil {
+			pterm.Warning.Printf("Failed to parse system profile: %v\n", err)
+		}
+	}
 
 	// System Info Box
 	sysInfo := [][]string{

@@ -12,51 +12,51 @@ type SystemContext struct {
 	context.Context
 
 	// İşletim Sistemi Bilgileri
-	OS       string // runtime.GOOS (linux, darwin)
-	Distro   string // ubuntu, arch, fedora
-	Version  string // 22.04, 38, rolling
-	Hostname string // Makine adı
+	OS       string `yaml:"os"`       // runtime.GOOS (linux, darwin)
+	Distro   string `yaml:"distro"`   // ubuntu, arch, fedora
+	Version  string `yaml:"version"`  // 22.04, 38, rolling
+	Hostname string `yaml:"hostname"` // Makine adı
 
 	// Donanım Bilgileri
-	Hardware SystemHardware
+	Hardware SystemHardware `yaml:"hardware"`
 
 	// Çevresel Değişkenler
-	Env SystemEnv
+	Env SystemEnv `yaml:"env"`
 
 	// Dosya Sistemi
-	FS SystemFS
+	FS SystemFS `yaml:"fs"`
 
 	// Kullanıcı Bilgileri
-	User    string // Mevcut kullanıcı
-	HomeDir string // Kullanıcının ev dizini
-	UID     string // User ID
-	GID     string // Group ID
+	User    string `yaml:"user"`     // Mevcut kullanıcı
+	HomeDir string `yaml:"home_dir"` // Kullanıcının ev dizini
+	UID     string `yaml:"uid"`      // User ID
+	GID     string `yaml:"gid"`      // Group ID
 
 	// Çalışma Modu
-	DryRun bool // Eğer true ise, hiçbir değişiklik yapılmaz, sadece simüle edilir.
+	DryRun bool `yaml:"-"` // Eğer true ise, hiçbir değişiklik yapılmaz, sadece simüle edilir.
 
 	// Logger veya Output (İleride loglama için)
-	Stdout io.Writer
-	Stderr io.Writer
+	Stdout io.Writer `yaml:"-"`
+	Stderr io.Writer `yaml:"-"`
 }
 
 type SystemHardware struct {
-	CPUModel  string // "AMD Ryzen 7 5800X"
-	CPUCore   int    // Çekirdek sayısı
-	RAMTotal  string // "16GB"
-	GPUVendor string // "NVIDIA", "AMD", "Intel"
-	GPUModel  string // "RTX 3070"
+	CPUModel  string `yaml:"cpu_model"`  // "AMD Ryzen 7 5800X"
+	CPUCore   int    `yaml:"cpu_core"`   // Çekirdek sayısı
+	RAMTotal  string `yaml:"ram_total"`  // "16GB"
+	GPUVendor string `yaml:"gpu_vendor"` // "NVIDIA", "AMD", "Intel"
+	GPUModel  string `yaml:"gpu_model"`  // "RTX 3070"
 }
 
 type SystemEnv struct {
-	Shell    string // "/bin/zsh"
-	Lang     string // "en_US.UTF-8"
-	Term     string // "xterm-256color"
-	Timezone string // "Europe/Istanbul"
+	Shell    string `yaml:"shell"`    // "/bin/zsh"
+	Lang     string `yaml:"lang"`     // "en_US.UTF-8"
+	Term     string `yaml:"term"`     // "xterm-256color"
+	Timezone string `yaml:"timezone"` // "Europe/Istanbul"
 }
 
 type SystemFS struct {
-	RootFSType string // "ext4", "btrfs", "zfs"
+	RootFSType string `yaml:"root_fs_type"` // "ext4", "btrfs", "zfs"
 }
 
 // NewSystemContext, temel bir context oluşturur.
