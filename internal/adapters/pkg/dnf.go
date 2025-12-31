@@ -8,7 +8,8 @@ import (
 
 type DnfAdapter struct {
 	core.BaseResource
-	State string
+	State           string
+	ActionPerformed string
 }
 
 func NewDnfAdapter(name string, state string) *DnfAdapter {
@@ -49,14 +50,28 @@ func (r *DnfAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 	var args []string
 	if r.State == "absent" {
 		args = []string{"remove", "-y", r.Name}
+		r.ActionPerformed = "removed"
 	} else {
 		args = []string{"install", "-y", r.Name}
+		r.ActionPerformed = "installed"
 	}
 
 	out, err := runCommand("dnf", args...)
 	if err != nil {
+		r.ActionPerformed = ""
 		return core.Failure(err, "Dnf failed: "+out), err
 	}
 
 	return core.SuccessChange(fmt.Sprintf("Dnf processed %s", r.Name)), nil
+}
+
+func (r *DnfAdapter) Revert(ctx *core.SystemContext) error {
+	if r.ActionPerformed == "installed" {
+		_, err := runCommand("dnf", "remove", "-y", r.Name)
+		return err
+	} else if r.ActionPerformed == "removed" {
+		_, err := runCommand("dnf", "install", "-y", r.Name)
+		return err
+	}
+	return nil
 }

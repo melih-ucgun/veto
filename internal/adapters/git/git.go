@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/pterm/pterm"
+
 	"github.com/melih-ucgun/monarch/internal/core"
 )
 
@@ -21,6 +23,7 @@ type GitAdapter struct {
 	Update      bool
 	State       string // present (clone/pull), absent (delete)
 	PreviousSHA string // Rollback için
+	IsNew       bool   // Yeni klonlandı mı?
 }
 
 func NewGitAdapter(name string, params map[string]interface{}) *GitAdapter {
@@ -189,6 +192,8 @@ func (r *GitAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 			return core.Failure(err, fmt.Sprintf("Git clone failed: %s", string(out))), err
 		}
 
+		r.IsNew = true // Yeni oluşturuldu
+
 		// Eğer spesifik commit'e dönülecekse
 		if r.Commit != "" {
 			if err := checkout(r.Dest, r.Commit); err != nil {
@@ -240,22 +245,9 @@ func (r *GitAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 
 func (r *GitAdapter) Revert(ctx *core.SystemContext) error {
 	// Yeni klonlandıysa sil
-	if r.PreviousSHA == "" {
-		// Ancak bu tehlikeli olabilir eğer "folder exists" checkimiz false döndüyse
-		// Yani folder zaten vardı ama update ettik -> PreviousSHA olmalı.
-		// Eğer folder yoktu ve klonladık -> PreviousSHA boş olabilir veya biz set etmedik.
-		// Apply mantığına göre: Klonlarken PreviousSHA set etmiyoruz. Update ederken ediyoruz.
-		// Klonlanan repoyu silebiliriz.
-
-		// Güvenlik için: Sadece bu session'da oluşturulduysa silinmeli.
-		// State tracking olmadığı için şimdilik "update edilmediyse sil" diyebiliriz
-		// Ama update=false ve clone yapıldıysa?
-		// En iyisi: Apply içinde `isNew` flag tutmak.
-		// Basitlik için: PreviousSHA varsa checkout yap, yoksa (ve present ise) silme riskine girme (veya logla).
-		// Kullanıcı feedbackine göre: Yeni kurulanı silmeliyiz.
-		// Ama burada "isNew" fieldımız yok structta.
-		// TODO: Add `isNew` to struct for safer rollback.
-		return nil
+	if r.IsNew {
+		pterm.Warning.Printf("Reverting git clone: removing %s\n", r.Dest)
+		return os.RemoveAll(r.Dest)
 	}
 
 	// Update edildiyse eski SHA'ya dön

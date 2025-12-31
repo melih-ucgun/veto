@@ -1,0 +1,4 @@
+resources:
+  - type: package
+    name: monarch-fake-package-123
+    state: present

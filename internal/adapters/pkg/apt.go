@@ -8,7 +8,8 @@ import (
 
 type AptAdapter struct {
 	core.BaseResource
-	State string
+	State           string
+	ActionPerformed string
 }
 
 func NewAptAdapter(name string, state string) *AptAdapter {
@@ -51,14 +52,28 @@ func (r *AptAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 	var args []string
 	if r.State == "absent" {
 		args = []string{"remove", "-y", r.Name}
+		r.ActionPerformed = "removed"
 	} else {
 		args = []string{"install", "-y", r.Name}
+		r.ActionPerformed = "installed"
 	}
 
 	out, err := runCommand("apt-get", args...)
 	if err != nil {
+		r.ActionPerformed = ""
 		return core.Failure(err, "Apt failed: "+out), err
 	}
 
 	return core.SuccessChange(fmt.Sprintf("Apt processed %s", r.Name)), nil
+}
+
+func (r *AptAdapter) Revert(ctx *core.SystemContext) error {
+	if r.ActionPerformed == "installed" {
+		_, err := runCommand("apt-get", "remove", "-y", r.Name)
+		return err
+	} else if r.ActionPerformed == "removed" {
+		_, err := runCommand("apt-get", "install", "-y", r.Name)
+		return err
+	}
+	return nil
 }

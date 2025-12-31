@@ -3,6 +3,7 @@ module github.com/melih-ucgun/monarch
 go 1.25.5
 
 require (
+	atomicgo.dev/cursor v0.2.0
 	filippo.io/age v1.3.1
 	github.com/expr-lang/expr v1.17.7
 	github.com/joho/godotenv v1.5.1
@@ -13,7 +14,6 @@ require (
 )
 
 require (
-	atomicgo.dev/cursor v0.2.0 // indirect
 	atomicgo.dev/keyboard v0.2.9 // indirect
 	atomicgo.dev/schedule v0.1.0 // indirect
 	filippo.io/hpke v0.4.0 // indirect
