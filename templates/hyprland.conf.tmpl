@@ -1,0 +1,15 @@
+# Hyprland Config
+monitor={{ .monitor_primary }},{{ .monitor_res }},auto,1
+exec-once=waybar
+input {
+    kb_layout=tr
+}
+general {
+    gaps_in=5
+    gaps_out=10
+    border_size=2
+    col.active_border={{ .theme_color }}
+}
+decoration {
+    rounding=10
+}

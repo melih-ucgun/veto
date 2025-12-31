@@ -62,6 +62,8 @@ func CreateResourceWithParams(resType string, name string, params map[string]int
 		return files.NewSymlinkAdapter(name, params), nil
 	case "archive", "extract":
 		return files.NewArchiveAdapter(name, params), nil
+	case "download":
+		return files.NewDownloadAdapter(name, params), nil
 	case "template":
 		return files.NewTemplateAdapter(name, params), nil
 	case "line_in_file", "lineinfile":

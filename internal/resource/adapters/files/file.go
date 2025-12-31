@@ -78,8 +78,26 @@ func (r *FileAdapter) Check(ctx *core.SystemContext) (bool, error) {
 		return true, nil
 	}
 
-	// İçerik kontrolü (Basit boyut kontrolü veya hash eklenebilir)
-	// Şimdilik her zaman "değişiklik yok" varsayıyoruz ama gerçekte hash kontrolü gerekir.
+	// İçerik kontrolü
+	if r.Content != "" {
+		existingContent, err := os.ReadFile(r.Path)
+		if err != nil {
+			return false, err
+		}
+		if string(existingContent) != r.Content {
+			return true, nil
+		}
+	} else if r.Source != "" {
+		// Source ile hedefi karşılaştır
+		same, err := compareFiles(r.Source, r.Path)
+		if err != nil {
+			return false, err
+		}
+		if !same {
+			return true, nil
+		}
+	}
+
 	return false, nil
 }
 
