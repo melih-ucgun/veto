@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"sort"
 
@@ -110,7 +111,44 @@ var importCmd = &cobra.Command{
 			}
 		}
 
-		// 3. Generate Config
+		// 3. Config Discovery (Context Aware)
+		// Based on SELECTED packages, find potential config files
+		spinner.UpdateText("Scanning for configuration files...")
+		pterm.Println() // Spacer
+
+		var potentialConfigs []string
+		// Combine packages and services names for lookup (some services like nginx map to configs too)
+		lookupList := append([]string{}, selectedPkgs...)
+		lookupList = append(lookupList, selectedServices...)
+
+		configs, err := discovery.DiscoverConfigs(lookupList, ctx.HomeDir)
+		if err == nil && len(configs) > 0 {
+			potentialConfigs = configs
+		}
+
+		var selectedConfigs []string
+		if len(potentialConfigs) > 0 {
+			if !nonInteractive {
+				pterm.Println()
+				pterm.Info.Printf("Found %d relevant config files based on your selection.\n", len(potentialConfigs))
+				pterm.Info.Println("Select CONFIG FILES to import:")
+
+				sort.Strings(potentialConfigs)
+
+				// Default behavior: Select All? Or Let user pick?
+				// Configs are personal, let's pre-select all as usually if discovered, it's relevant.
+
+				selectedConfigs, _ = pterm.DefaultInteractiveMultiselect.
+					WithOptions(potentialConfigs).
+					WithDefaultText("Select config files").
+					WithFilter(true).
+					Show()
+			} else {
+				selectedConfigs = potentialConfigs
+			}
+		}
+
+		// 4. Generate Config
 		cfg := &config.Config{
 			Resources: []config.ResourceConfig{},
 		}
@@ -120,6 +158,23 @@ var importCmd = &cobra.Command{
 				Type:  "pkg",
 				Name:  p,
 				State: "present",
+			})
+		}
+
+		for _, c := range selectedConfigs {
+			cfg.Resources = append(cfg.Resources, config.ResourceConfig{
+				Type: "file",
+				Name: filepath.Base(c), // Name it after filename? Or full path? Name must be unique if file type uses name as key?
+				// Engine uses Name as ID usually, but params["path"] is real target.
+				// Unique ID problem: multiple files might have same basename (init.lua).
+				// Better: Use Name = Config Name (e.g. zshrc)
+				// Or just use a generated slug.
+				// Let's rely on fallback.
+				Params: map[string]interface{}{
+					"path":  c,
+					"state": "present",
+					// "content": "..." // We are NOT reading content yet, just referencing path
+				},
 			})
 		}
 
