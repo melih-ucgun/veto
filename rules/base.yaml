@@ -1,0 +1,7 @@
+resources:
+  - id: base-git
+    type: git
+    parameters:
+      repo: https://github.com/octocat/Hello-World.git
+      dest: /tmp/monarch-mod-test/base
+      branch: master

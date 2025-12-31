@@ -1,0 +1,11 @@
+includes:
+  - rules/base.yaml
+  - rules/app.yaml
+
+# Local resource
+resources:
+  - id: main-exec
+    type: exec
+    depends_on: [dep-file] # Depends on App, which depends on Base
+    parameters:
+      command: "echo 'All done'"
