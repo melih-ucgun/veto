@@ -19,6 +19,10 @@ type FileAdapter struct {
 	BackupPath string // Yedeklenen dosyanın yolu
 }
 
+func (r *FileAdapter) GetBackupPath() string {
+	return r.BackupPath
+}
+
 func NewFileAdapter(name string, params map[string]interface{}) *FileAdapter {
 	path, _ := params["path"].(string)
 	if path == "" {

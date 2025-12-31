@@ -62,3 +62,32 @@ func (r *ApkAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 
 	return core.SuccessChange(fmt.Sprintf("Apk processed %s", r.Name)), nil
 }
+
+func (r *ApkAdapter) Revert(ctx *core.SystemContext) error {
+	// Revert işlemini yapmamız için, az önce yaptığımız işlemin tersini yapmalıyız.
+	// Eğer State="present" ise -> "absent" yap (sil)
+	// Eğer State="absent" ise -> "present" yap (kur)
+
+	// TODO: Bu mantık "önceden sistemde var mıydı?" kontrolünü içermiyor.
+	// İdeal dünyada, "önceden yoktu, ben kurdum, şimdi siliyorum" demeliyiz.
+	// Ama basit atomic rollback için ters işlem şimdilik yeterli.
+
+	var args []string
+	if r.State == "present" {
+		// Biz kurduk, geri alırken siliyoruz
+		args = []string{"del", r.Name}
+	} else {
+		// Biz sildik, geri alırken kuruyoruz
+		args = []string{"add", r.Name}
+	}
+
+	if ctx.DryRun {
+		return nil
+	}
+
+	out, err := runCommand("apk", args...)
+	if err != nil {
+		return fmt.Errorf("revert apk failed: %s: %w", out, err)
+	}
+	return nil
+}

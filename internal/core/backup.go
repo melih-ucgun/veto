@@ -1,6 +1,8 @@
 package core
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -45,12 +47,14 @@ func (bm *BackupManager) BackupFile(path string) (string, error) {
 		return "", nil
 	}
 
-	// Yedek dosya yolu: backups/<timestamp>/path_hash_filename
-	// Hash yerine path'i düzleştirerek kullanabiliriz: var_log_syslog
-	flatPath := filepath.Base(path) // Çakışma riski var ama basit tutuyoruz
-	// Daha güvenlisi: tam yolu encode etmek
-	// Şimdilik sadece filename + random suffix
-	backupPath := filepath.Join(bm.BackupDir, flatPath)
+	// Yedek dosya yolu: backups/<timestamp>/hash_filename
+	// Hash kullanarak path çakışmalarını önlüyoruz (örn: /etc/hosts vs /tmp/hosts)
+	hasher := sha256.New()
+	hasher.Write([]byte(path))
+	pathHash := hex.EncodeToString(hasher.Sum(nil))[:8]
+
+	flatFilename := fmt.Sprintf("%s_%s", pathHash, filepath.Base(path))
+	backupPath := filepath.Join(bm.BackupDir, flatFilename)
 
 	// Dosyayı kopyala
 	srcFile, err := os.Open(path)

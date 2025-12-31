@@ -3,10 +3,12 @@ package core
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/pterm/pterm"
 
 	"github.com/melih-ucgun/monarch/internal/config"
+	"github.com/melih-ucgun/monarch/internal/state"
 )
 
 // StateUpdater interface allows Engine to be independent of the state package.
@@ -54,6 +56,14 @@ type ApplyableResource interface {
 func (e *Engine) Run(items []ConfigItem, createFn ResourceCreator) error {
 	errCount := 0
 
+	// Transaction recording
+	transaction := state.Transaction{
+		ID:        state.GenerateID(),
+		Timestamp: time.Now().Format(time.RFC3339),
+		Status:    "success",
+		Changes:   []state.TransactionChange{},
+	}
+
 	for _, item := range items {
 		// Params preparation
 		if item.Params == nil {
@@ -79,6 +89,32 @@ func (e *Engine) Run(items []ConfigItem, createFn ResourceCreator) error {
 			fmt.Printf("❌ [%s] Failed: %v\n", item.Name, err)
 		} else if result.Changed {
 			fmt.Printf("✅ [%s] %s\n", item.Name, result.Message)
+
+			// Record change for History
+			change := state.TransactionChange{
+				Type:   item.Type,
+				Name:   item.Name,
+				Action: "applied", // Could be more specific based on result message
+			}
+
+			// Try to get target path (specifically for file)
+			if p, ok := item.Params["path"].(string); ok {
+				change.Target = p
+			} else {
+				change.Target = item.Name // Fallback
+			}
+
+			// Use local interface to avoid import cycle
+			type Backupable interface {
+				GetBackupPath() string
+			}
+
+			if b, ok := res.(Backupable); ok {
+				change.BackupPath = b.GetBackupPath()
+			}
+
+			transaction.Changes = append(transaction.Changes, change)
+
 		} else {
 			fmt.Printf("ℹ️  [%s] OK\n", item.Name)
 		}
@@ -94,6 +130,18 @@ func (e *Engine) Run(items []ConfigItem, createFn ResourceCreator) error {
 	}
 
 	if errCount > 0 {
+		transaction.Status = "failed"
+	}
+
+	// Save History
+	if !e.Context.DryRun {
+		hm := state.NewHistoryManager("")
+		if err := hm.AddTransaction(transaction); err != nil {
+			fmt.Printf("⚠️ Warning: Failed to save history: %v\n", err)
+		}
+	}
+
+	if errCount > 0 {
 		return fmt.Errorf("encountered %d errors during execution", errCount)
 	}
 	return nil
@@ -105,6 +153,15 @@ func (e *Engine) RunParallel(layer []ConfigItem, createFn ResourceCreator) error
 	errChan := make(chan error, len(layer))
 	var updatedResources []ApplyableResource // Track successful ones (For Rollback)
 	var mu sync.Mutex                        // lock for updatedResources
+
+	// Transaction recording
+	transaction := state.Transaction{
+		ID:        state.GenerateID(),
+		Timestamp: time.Now().Format(time.RFC3339),
+		Status:    "success",
+		Changes:   []state.TransactionChange{},
+	}
+	var txMu sync.Mutex
 
 	for _, item := range layer {
 		wg.Add(1)
@@ -166,10 +223,36 @@ func (e *Engine) RunParallel(layer []ConfigItem, createFn ResourceCreator) error
 					updatedResources = append(updatedResources, res)
 					mu.Unlock()
 				}
+
+				// Record change for History
+				change := state.TransactionChange{
+					Type:   it.Type,
+					Name:   it.Name,
+					Action: "applied",
+				}
+
+				// Try to get target path
+				if p, ok := it.Params["path"].(string); ok {
+					change.Target = p
+				} else {
+					change.Target = it.Name // Fallback
+				}
+
+				// Use local interface to avoid import cycle
+				type Backupable interface {
+					GetBackupPath() string
+				}
+
+				if b, ok := res.(Backupable); ok {
+					change.BackupPath = b.GetBackupPath()
+				}
+
+				txMu.Lock()
+				transaction.Changes = append(transaction.Changes, change)
+				txMu.Unlock()
+
 			} else {
 				// No Change (Info or Skipped)
-				// pterm.Info or pterm.Debug (if user wants)
-				// Currently Gray or Info.
 				pterm.Info.Printf("[%s] %s: OK\n", it.Type, it.Name)
 			}
 
@@ -190,6 +273,7 @@ func (e *Engine) RunParallel(layer []ConfigItem, createFn ResourceCreator) error
 	}
 
 	if errCount > 0 {
+		transaction.Status = "failed"
 		// Trigger Rollback
 		if !e.Context.DryRun {
 			pterm.Println()
@@ -202,7 +286,20 @@ func (e *Engine) RunParallel(layer []ConfigItem, createFn ResourceCreator) error
 			// 2. Revert operations completed in previous layers
 			pterm.Warning.Printf("Visualizing Rollback for previous layers (%d resources)...\n", len(e.AppliedHistory))
 			e.rollback(e.AppliedHistory)
+
+			transaction.Status = "reverted"
 		}
+	}
+
+	// Save History
+	if !e.Context.DryRun {
+		hm := state.NewHistoryManager("")
+		if err := hm.AddTransaction(transaction); err != nil {
+			fmt.Printf("⚠️ Warning: Failed to save history: %v\n", err)
+		}
+	}
+
+	if errCount > 0 {
 		return fmt.Errorf("encountered %d errors in parallel layer execution", errCount)
 	}
 

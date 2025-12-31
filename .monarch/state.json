@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "last_run": "2025-12-31T13:18:15.088712198+03:00",
+  "last_run": "2025-12-31T20:11:25.967373517+03:00",
   "resources": {
     "download:download-font": {
       "id": "download:download-font",
@@ -47,12 +47,39 @@
       "status": "success",
       "metadata": {}
     },
+    "file:fail-file": {
+      "id": "file:fail-file",
+      "name": "fail-file",
+      "type": "file",
+      "state": "present",
+      "last_applied": "2025-12-31T20:03:13.766707587+03:00",
+      "status": "failed",
+      "metadata": {}
+    },
+    "file:history-test-file": {
+      "id": "file:history-test-file",
+      "name": "history-test-file",
+      "type": "file",
+      "state": "present",
+      "last_applied": "2025-12-31T20:11:25.967372395+03:00",
+      "status": "success",
+      "metadata": {}
+    },
     "file:state-file": {
       "id": "file:state-file",
       "name": "state-file",
       "type": "file",
       "state": "any",
       "last_applied": "2025-12-31T12:54:51.656707208+03:00",
+      "status": "reverted",
+      "metadata": {}
+    },
+    "file:success-file": {
+      "id": "file:success-file",
+      "name": "success-file",
+      "type": "file",
+      "state": "any",
+      "last_applied": "2025-12-31T20:03:13.767576922+03:00",
       "status": "reverted",
       "metadata": {}
     },
