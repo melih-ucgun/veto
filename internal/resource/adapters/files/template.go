@@ -12,10 +12,11 @@ import (
 
 type TemplateAdapter struct {
 	core.BaseResource
-	Src  string                 // Template dosyasının yolu
-	Dest string                 // Çıktı dosyasının yolu
-	Vars map[string]interface{} // Template içine gönderilecek değişkenler
-	Mode os.FileMode
+	Src        string                 // Template dosyasının yolu
+	Dest       string                 // Çıktı dosyasının yolu
+	Vars       map[string]interface{} // Template içine gönderilecek değişkenler
+	Mode       os.FileMode
+	BackupPath string
 }
 
 func NewTemplateAdapter(name string, params map[string]interface{}) *TemplateAdapter {
@@ -88,6 +89,14 @@ func (r *TemplateAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 		return core.SuccessChange(fmt.Sprintf("[DryRun] Render template %s to %s", r.Src, r.Dest)), nil
 	}
 
+	// YEDEKLEME
+	if core.GlobalBackup != nil {
+		backupPath, err := core.GlobalBackup.BackupFile(r.Dest)
+		if err == nil {
+			r.BackupPath = backupPath
+		}
+	}
+
 	// Render et
 	content, err := r.render()
 	if err != nil {
@@ -105,6 +114,13 @@ func (r *TemplateAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 	}
 
 	return core.SuccessChange("Template applied successfully"), nil
+}
+
+func (r *TemplateAdapter) Revert(ctx *core.SystemContext) error {
+	if r.BackupPath != "" {
+		return copyFile(r.BackupPath, r.Dest, r.Mode)
+	}
+	return os.Remove(r.Dest)
 }
 
 func (r *TemplateAdapter) render() (string, error) {

@@ -1,0 +1,34 @@
+resources:
+  # 1. Simple Clone (main)
+  - id: git-simple
+    type: git
+    parameters:
+      repo: https://github.com/melih-ucgun/monarch.git # Self repo for testing
+      dest: /tmp/monarch-git-test/simple
+      state: present
+
+  # 2. Specific Commit (Initial commit of Hello-World)
+  - id: git-commit
+    type: git
+    parameters:
+      repo: https://github.com/octocat/Hello-World.git
+      dest: /tmp/monarch-git-test/commit
+      commit: 7fd1a60b01f91b314f59955a4e4d4e80d8edf11d
+
+  # Better test: Use a tiny repo
+  - id: git-tiny
+    type: git
+    parameters:
+      repo: https://github.com/octocat/Hello-World.git
+      dest: /tmp/monarch-git-test/tiny
+      branch: master
+
+  # 3. Update Check (Force pull)
+  - id: git-update
+    type: git
+    depends_on: [git-tiny]
+    parameters:
+      repo: https://github.com/octocat/Hello-World.git
+      dest: /tmp/monarch-git-test/tiny
+      branch: master
+      update: true

@@ -8,7 +8,8 @@ import (
 
 type ParuAdapter struct {
 	core.BaseResource
-	State string
+	State           string
+	ActionPerformed string
 }
 
 func NewParuAdapter(name string, state string) *ParuAdapter {
@@ -49,14 +50,25 @@ func (r *ParuAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 	var args []string
 	if r.State == "absent" {
 		args = []string{"-Rns", "--noconfirm", r.Name}
+		r.ActionPerformed = "removed"
 	} else {
 		args = []string{"-S", "--noconfirm", "--needed", r.Name}
+		r.ActionPerformed = "installed"
 	}
 
 	out, err := runCommand("paru", args...)
 	if err != nil {
+		r.ActionPerformed = ""
 		return core.Failure(err, "Paru failed: "+out), err
 	}
 
 	return core.SuccessChange(fmt.Sprintf("Paru processed %s", r.Name)), nil
+}
+
+func (r *ParuAdapter) Revert(ctx *core.SystemContext) error {
+	if r.ActionPerformed == "installed" {
+		_, err := runCommand("paru", "-Rns", "--noconfirm", r.Name)
+		return err
+	}
+	return nil
 }

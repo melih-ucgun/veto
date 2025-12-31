@@ -9,6 +9,11 @@ type Resource interface {
 	GetName() string
 }
 
+// Revertable, geri alınabilir kaynakların implemente etmesi gereken arayüz.
+type Revertable interface {
+	Revert(ctx *SystemContext) error
+}
+
 // BaseResource, ortak alanları tutar.
 type BaseResource struct {
 	Name string `yaml:"name"`

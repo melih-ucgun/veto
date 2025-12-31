@@ -10,13 +10,14 @@ import (
 
 type UserAdapter struct {
 	core.BaseResource
-	Uid    string
-	Gid    string
-	Groups []string // Ek gruplar
-	Home   string
-	Shell  string
-	System bool
-	State  string
+	Uid             string
+	Gid             string
+	Groups          []string // Ek gruplar
+	Home            string
+	Shell           string
+	System          bool
+	State           string
+	ActionPerformed string
 }
 
 func NewUserAdapter(name string, params map[string]interface{}) *UserAdapter {
@@ -99,6 +100,7 @@ func (r *UserAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 		if out, err := exec.Command("userdel", "-r", r.Name).CombinedOutput(); err != nil {
 			return core.Failure(err, "Failed to delete user: "+string(out)), err
 		}
+		r.ActionPerformed = "deleted"
 		return core.SuccessChange("User deleted"), nil
 	}
 
@@ -128,6 +130,17 @@ func (r *UserAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 	if out, err := exec.Command("useradd", args...).CombinedOutput(); err != nil {
 		return core.Failure(err, "Failed to create user: "+string(out)), err
 	}
+	r.ActionPerformed = "created"
 
 	return core.SuccessChange("User created"), nil
+}
+
+func (r *UserAdapter) Revert(ctx *core.SystemContext) error {
+	if r.ActionPerformed == "created" {
+		// Oluşturulan kullanıcıyı sil
+		if out, err := exec.Command("userdel", "-r", r.Name).CombinedOutput(); err != nil {
+			return fmt.Errorf("failed to revert user creation: %s: %w", out, err)
+		}
+	}
+	return nil
 }

@@ -11,11 +11,12 @@ import (
 
 type FileAdapter struct {
 	core.BaseResource
-	Path    string
-	Source  string // Kopyalanacak kaynak dosya (opsiyonel)
-	Content string // Yazılacak içerik (opsiyonel)
-	Mode    os.FileMode
-	State   string // present, absent
+	Path       string
+	Source     string // Kopyalanacak kaynak dosya (opsiyonel)
+	Content    string // Yazılacak içerik (opsiyonel)
+	Mode       os.FileMode
+	State      string // present, absent
+	BackupPath string // Yedeklenen dosyanın yolu
 }
 
 func NewFileAdapter(name string, params map[string]interface{}) *FileAdapter {
@@ -111,6 +112,16 @@ func (r *FileAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 		return core.SuccessChange(fmt.Sprintf("[DryRun] Would %s file %s", r.State, r.Path)), nil
 	}
 
+	// YEDEKLEME
+	if core.GlobalBackup != nil {
+		backupPath, err := core.GlobalBackup.BackupFile(r.Path)
+		if err == nil {
+			r.BackupPath = backupPath
+		} else {
+			return core.Failure(err, "Failed to backup file"), err
+		}
+	}
+
 	if r.State == "absent" {
 		if err := os.Remove(r.Path); err != nil {
 			return core.Failure(err, "Failed to delete file"), err
@@ -136,6 +147,21 @@ func (r *FileAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 	}
 
 	return core.SuccessChange(fmt.Sprintf("File %s created/updated", r.Path)), nil
+}
+
+func (r *FileAdapter) Revert(ctx *core.SystemContext) error {
+	if r.BackupPath != "" {
+		// Yedeği geri yükle
+		return copyFile(r.BackupPath, r.Path, r.Mode)
+	}
+
+	if r.State == "present" {
+		// Yedek yoksa ve dosya oluşturduysak, sil
+		// (Dosya önceden yoktu demek)
+		return os.Remove(r.Path)
+	}
+
+	return nil
 }
 
 // copyFile basit bir kopyalama fonksiyonu

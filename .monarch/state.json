@@ -1,10 +1,123 @@
 {
+  "version": "1.0",
+  "last_run": "2025-12-31T12:40:51.637502703+03:00",
   "resources": {
     "bashrc_config": {
       "id": "bashrc_config",
+      "name": "",
       "type": "file",
+      "state": "",
       "last_applied": "2025-12-28T21:09:24.580512726+03:00",
-      "success": true
+      "status": "",
+      "metadata": null
+    },
+    "download:download-font": {
+      "id": "download:download-font",
+      "name": "download-font",
+      "type": "download",
+      "state": "",
+      "last_applied": "2025-12-31T12:30:58.42653582+03:00",
+      "status": "success",
+      "metadata": {}
+    },
+    "exec:fail-command": {
+      "id": "exec:fail-command",
+      "name": "fail-command",
+      "type": "exec",
+      "state": "",
+      "last_applied": "2025-12-31T12:32:24.189130286+03:00",
+      "status": "failed",
+      "metadata": {}
+    },
+    "file:create-temp-file": {
+      "id": "file:create-temp-file",
+      "name": "create-temp-file",
+      "type": "file",
+      "state": "present",
+      "last_applied": "2025-12-31T12:32:24.184700735+03:00",
+      "status": "success",
+      "metadata": {}
+    },
+    "git:git-commit": {
+      "id": "git:git-commit",
+      "name": "git-commit",
+      "type": "git",
+      "state": "",
+      "last_applied": "2025-12-31T12:40:32.130125806+03:00",
+      "status": "success",
+      "metadata": {}
+    },
+    "git:git-simple": {
+      "id": "git:git-simple",
+      "name": "git-simple",
+      "type": "git",
+      "state": "present",
+      "last_applied": "2025-12-31T12:40:50.821876054+03:00",
+      "status": "success",
+      "metadata": {}
+    },
+    "git:git-tiny": {
+      "id": "git:git-tiny",
+      "name": "git-tiny",
+      "type": "git",
+      "state": "",
+      "last_applied": "2025-12-31T12:40:32.202647366+03:00",
+      "status": "success",
+      "metadata": {}
+    },
+    "git:git-update": {
+      "id": "git:git-update",
+      "name": "git-update",
+      "type": "git",
+      "state": "",
+      "last_applied": "2025-12-31T12:40:51.637500309+03:00",
+      "status": "success",
+      "metadata": {}
+    },
+    "group:docker": {
+      "id": "group:docker",
+      "name": "docker",
+      "type": "group",
+      "state": "",
+      "last_applied": "2025-12-31T12:37:41.509908281+03:00",
+      "status": "success",
+      "metadata": {}
+    },
+    "line_in_file:enable-pacman-color": {
+      "id": "line_in_file:enable-pacman-color",
+      "name": "enable-pacman-color",
+      "type": "line_in_file",
+      "state": "",
+      "last_applied": "2025-12-31T12:37:41.502593571+03:00",
+      "status": "failed",
+      "metadata": {}
+    },
+    "package:git": {
+      "id": "package:git",
+      "name": "git",
+      "type": "package",
+      "state": "installed",
+      "last_applied": "2025-12-31T12:37:41.756209502+03:00",
+      "status": "success",
+      "metadata": {}
+    },
+    "template:config-hyprland": {
+      "id": "template:config-hyprland",
+      "name": "config-hyprland",
+      "type": "template",
+      "state": "",
+      "last_applied": "2025-12-31T12:37:41.503383059+03:00",
+      "status": "success",
+      "metadata": {}
+    },
+    "user:melih": {
+      "id": "user:melih",
+      "name": "melih",
+      "type": "user",
+      "state": "",
+      "last_applied": "2025-12-31T12:37:41.507145633+03:00",
+      "status": "success",
+      "metadata": {}
     }
   }
 }

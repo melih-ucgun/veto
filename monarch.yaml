@@ -49,6 +49,8 @@ resources:
   # AUR Paketleri (Paru) - Hyprland için
   - id: install-hyprland-git
     type: package
+    depends_on:
+      - install-base-tools
     parameters:
       name: hyprland-git
       manager: paru
@@ -57,6 +59,8 @@ resources:
   # Flatpak Uygulamaları
   - id: install-spotify
     type: package
+    depends_on:
+      - configure-user
     parameters:
       name: com.spotify.Client
       manager: flatpak
@@ -75,6 +79,8 @@ resources:
   # İndirilen fontu açmak için Exec kullanılabilir
   - id: unzip-font
     type: exec
+    depends_on:
+      - download-font
     parameters:
       command: "unzip -o /tmp/JetBrainsMono.zip -d ~/.local/share/fonts && fc-cache -fv"
       unless: "ls ~/.local/share/fonts/JetBrainsMonoNerdFont-Regular.ttf"

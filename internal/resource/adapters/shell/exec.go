@@ -9,9 +9,10 @@ import (
 
 type ExecAdapter struct {
 	core.BaseResource
-	Command string
-	Unless  string // Eğer bu komut başarılı olursa (exit 0), ana komutu çalıştırma
-	OnlyIf  string // Sadece bu komut başarılı olursa ana komutu çalıştır
+	Command       string
+	Unless        string // Eğer bu komut başarılı olursa (exit 0), ana komutu çalıştırma
+	OnlyIf        string // Sadece bu komut başarılı olursa ana komutu çalıştır
+	RevertCommand string // Rollback durumunda çalıştırılacak komut
 }
 
 func NewExecAdapter(name string, params map[string]interface{}) *ExecAdapter {
@@ -22,12 +23,14 @@ func NewExecAdapter(name string, params map[string]interface{}) *ExecAdapter {
 
 	unless, _ := params["unless"].(string)
 	onlyif, _ := params["onlyif"].(string)
+	revertCmd, _ := params["revert_command"].(string)
 
 	return &ExecAdapter{
-		BaseResource: core.BaseResource{Name: name, Type: "exec"},
-		Command:      cmd,
-		Unless:       unless,
-		OnlyIf:       onlyif,
+		BaseResource:  core.BaseResource{Name: name, Type: "exec"},
+		Command:       cmd,
+		Unless:        unless,
+		OnlyIf:        onlyif,
+		RevertCommand: revertCmd,
 	}
 }
 
@@ -75,4 +78,14 @@ func (r *ExecAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 	}
 
 	return core.SuccessChange("Command executed successfully"), nil
+}
+
+func (r *ExecAdapter) Revert(ctx *core.SystemContext) error {
+	if r.RevertCommand != "" {
+		out, err := exec.Command("sh", "-c", r.RevertCommand).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("revert command failed: %s: %w", out, err)
+		}
+	}
+	return nil
 }

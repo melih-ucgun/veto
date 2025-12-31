@@ -12,9 +12,10 @@ import (
 
 type DownloadAdapter struct {
 	core.BaseResource
-	URL  string
-	Dest string
-	Mode os.FileMode
+	URL        string
+	Dest       string
+	Mode       os.FileMode
+	BackupPath string
 }
 
 func NewDownloadAdapter(name string, params map[string]interface{}) *DownloadAdapter {
@@ -78,6 +79,14 @@ func (r *DownloadAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 		return core.SuccessChange(fmt.Sprintf("[DryRun] Download %s to %s", r.URL, r.Dest)), nil
 	}
 
+	// YEDEKLEME
+	if core.GlobalBackup != nil {
+		backupPath, err := core.GlobalBackup.BackupFile(r.Dest)
+		if err == nil {
+			r.BackupPath = backupPath
+		}
+	}
+
 	// Ensure dir exists
 	if err := os.MkdirAll(filepath.Dir(r.Dest), 0755); err != nil {
 		return core.Failure(err, "Failed to create directory"), err
@@ -109,4 +118,12 @@ func (r *DownloadAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 	}
 
 	return core.SuccessChange(fmt.Sprintf("Downloaded %s to %s", r.URL, r.Dest)), nil
+}
+
+func (r *DownloadAdapter) Revert(ctx *core.SystemContext) error {
+	if r.BackupPath != "" {
+		return copyFile(r.BackupPath, r.Dest, r.Mode)
+	}
+	// Yedek yoksa yeni indirilmiştir, sil
+	return os.Remove(r.Dest)
 }

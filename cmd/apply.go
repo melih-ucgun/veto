@@ -72,8 +72,16 @@ func runApply(configFile string, isDryRun bool) error {
 	// 5. Motoru (Engine) Hazırla (State Manager Enjekte Edildi)
 	eng := core.NewEngine(ctx, stateMgr)
 
-	var items []core.ConfigItem
-	for _, layer := range sortedResources {
+	fmt.Printf("📦 Processing %d layers...\n", len(sortedResources))
+
+	// 6. Motoru Ateşle
+	createFn := func(t, n string, p map[string]interface{}, c *core.SystemContext) (core.ApplyableResource, error) {
+		return resource.CreateResourceWithParams(t, n, p, c)
+	}
+
+	for i, layer := range sortedResources {
+		fmt.Printf("🔄 Layer %d:\n", i)
+		var layerItems []core.ConfigItem
 		for _, res := range layer {
 			name := res.Name
 			if name == "" {
@@ -90,26 +98,18 @@ func runApply(configFile string, isDryRun bool) error {
 					state = s
 				}
 			}
-
-			items = append(items, core.ConfigItem{
+			layerItems = append(layerItems, core.ConfigItem{
 				Name:   name,
 				Type:   res.Type,
 				State:  state,
 				Params: res.Params,
 			})
 		}
-	}
 
-	fmt.Printf("📦 Processing %d resources...\n", len(items))
-
-	// 6. Motoru Ateşle
-	err = eng.Run(items, func(t, n string, p map[string]interface{}, c *core.SystemContext) (core.ApplyableResource, error) {
-		return resource.CreateResourceWithParams(t, n, p, c)
-	})
-
-	if err != nil {
-		fmt.Printf("\n⚠️ Completed with errors: %v\n", err)
-		return err
+		if err := eng.RunParallel(layerItems, createFn); err != nil {
+			fmt.Printf("\n⚠️ Layer %d completed with errors: %v\n", i, err)
+			return err
+		}
 	}
 
 	fmt.Println("\n✨ Configuration applied successfully!")

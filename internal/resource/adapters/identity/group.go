@@ -11,9 +11,10 @@ import (
 
 type GroupAdapter struct {
 	core.BaseResource
-	Gid    int
-	System bool
-	State  string
+	Gid             int
+	System          bool
+	State           string
+	ActionPerformed string
 }
 
 func NewGroupAdapter(name string, params map[string]interface{}) *GroupAdapter {
@@ -93,6 +94,7 @@ func (r *GroupAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 		if out, err := exec.Command("groupdel", r.Name).CombinedOutput(); err != nil {
 			return core.Failure(err, "Failed to delete group: "+string(out)), err
 		}
+		r.ActionPerformed = "deleted"
 		return core.SuccessChange("Group deleted"), nil
 	}
 
@@ -113,6 +115,7 @@ func (r *GroupAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 			if out, err := exec.Command("groupmod", args...).CombinedOutput(); err != nil {
 				return core.Failure(err, "Failed to modify group: "+string(out)), err
 			}
+			r.ActionPerformed = "modified"
 			return core.SuccessChange("Group modified"), nil
 		}
 		return core.SuccessNoChange("Group exists"), nil
@@ -131,6 +134,16 @@ func (r *GroupAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 	if out, err := exec.Command("groupadd", args...).CombinedOutput(); err != nil {
 		return core.Failure(err, "Failed to create group: "+string(out)), err
 	}
+	r.ActionPerformed = "created"
 
 	return core.SuccessChange("Group created"), nil
+}
+
+func (r *GroupAdapter) Revert(ctx *core.SystemContext) error {
+	if r.ActionPerformed == "created" {
+		if out, err := exec.Command("groupdel", r.Name).CombinedOutput(); err != nil {
+			return fmt.Errorf("failed to revert group creation: %s: %w", out, err)
+		}
+	}
+	return nil
 }

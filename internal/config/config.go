@@ -16,11 +16,12 @@ type Config struct {
 
 // ResourceConfig, her bir kaynağın (file, user, package vb.) konfigürasyonunu tutar.
 type ResourceConfig struct {
-	ID     string                 `yaml:"id"`
-	Name   string                 `yaml:"name"`
-	Type   string                 `yaml:"type"`
-	State  string                 `yaml:"state"`
-	Params map[string]interface{} `yaml:"parameters"`
+	ID        string                 `yaml:"id"`
+	Name      string                 `yaml:"name"`
+	Type      string                 `yaml:"type"`
+	State     string                 `yaml:"state"`
+	DependsOn []string               `yaml:"depends_on"`
+	Params    map[string]interface{} `yaml:"parameters"`
 }
 
 // Host, uzak sunucu bağlantı bilgilerini tutar.

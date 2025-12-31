@@ -8,7 +8,8 @@ import (
 
 type FlatpakAdapter struct {
 	core.BaseResource
-	State string
+	State           string
+	ActionPerformed string
 }
 
 func NewFlatpakAdapter(name string, state string) *FlatpakAdapter {
@@ -51,15 +52,26 @@ func (r *FlatpakAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 	var args []string
 	if r.State == "absent" {
 		args = []string{"uninstall", "-y", r.Name}
+		r.ActionPerformed = "removed"
 	} else {
 		// Flatpak genelde non-interactive kurulum için -y ister
 		args = []string{"install", "-y", r.Name}
+		r.ActionPerformed = "installed"
 	}
 
 	out, err := runCommand("flatpak", args...)
 	if err != nil {
+		r.ActionPerformed = ""
 		return core.Failure(err, "Flatpak failed: "+out), err
 	}
 
 	return core.SuccessChange(fmt.Sprintf("Flatpak processed %s", r.Name)), nil
+}
+
+func (r *FlatpakAdapter) Revert(ctx *core.SystemContext) error {
+	if r.ActionPerformed == "installed" {
+		_, err := runCommand("flatpak", "uninstall", "-y", r.Name)
+		return err
+	}
+	return nil
 }
