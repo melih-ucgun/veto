@@ -1,0 +1,22 @@
+os: linux
+distro: cachyos
+version: ""
+init_system: systemd
+hostname: monarch
+hardware:
+    cpu_model: AMD Ryzen 7 7730U with Radeon Graphics
+    cpu_core: 16
+    ram_total: 14150256 kB
+    gpu_vendor: AMD
+    gpu_model: Advanced Micro Devices, Inc. [AMD/ATI] B...
+env:
+    shell: /usr/bin/zsh
+    lang: en_US.UTF-8
+    term: xterm-256color
+    timezone: Europe/Istanbul
+fs:
+    root_fs_type: btrfs
+user: melih
+home_dir: /home/melih
+uid: "1000"
+gid: "1000"
