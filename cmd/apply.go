@@ -30,21 +30,21 @@ Updates .monarch/state.json with the results.`,
 		if len(args) > 0 {
 			configFile = args[0]
 		} else {
-			// Check active profile
-			mgr := hub.NewProfileManager("")
-			profilePath, err := mgr.GetProfilePath("")
-			if err == nil && profilePath != "" {
+			// Check active recipe
+			mgr := hub.NewRecipeManager("")
+			recipePath, err := mgr.GetRecipePath("")
+			if err == nil && recipePath != "" {
 				// Verify file exists
-				if _, err := os.Stat(profilePath); err == nil {
-					configFile = profilePath
-					pterm.Info.Printf("Using active profile: %s\n", profilePath)
+				if _, err := os.Stat(recipePath); err == nil {
+					configFile = recipePath
+					pterm.Info.Printf("Using active recipe: %s\n", recipePath)
 				}
 			}
 
 			// Fallback
 			if configFile == "" {
-				configFile = "monarch.yaml"
-				pterm.Warning.Println("No active profile active. Defaulting to monarch.yaml")
+				configFile = "system.yaml"
+				pterm.Warning.Println("No active recipe found. Defaulting to system.yaml")
 			}
 		}
 

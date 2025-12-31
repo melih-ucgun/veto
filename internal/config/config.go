@@ -14,6 +14,7 @@ type Config struct {
 	Vars      map[string]string `yaml:"vars"`      // Global variables
 	Includes  []string          `yaml:"includes"`  // Other config files to include
 	Imports   []string          `yaml:"imports"`   // Alias for includes
+	RuleSets  []string          `yaml:"rulesets"`  // RuleSet paths to include
 	Resources []ResourceConfig  `yaml:"resources"` // Resource list
 	Hosts     []Host            `yaml:"hosts"`     // Remote hosts (Optional)
 }
@@ -109,6 +110,24 @@ func loadConfigRecursive(path string, visited map[string]bool) (*Config, error) 
 		blockCfg.Includes[i] = os.ExpandEnv(inc)
 	}
 
+	// Process Rulesets: Treat them as includes but look for "rules.yaml" if it's a directory
+	// In strict recipe mode, these are local paths.
+	// We append them to Includes so the loop below handles them.
+	for _, rs := range blockCfg.RuleSets {
+		expandedRS := os.ExpandEnv(rs)
+
+		// If it's a directory, assume rules.yaml inside
+		// We rely on the Includes loop to resolve paths relative to the current file
+		// But here we need to know if it's a dir or file to append correctly?
+		// Actually, LoadConfigRecursive can handle this if we modify it, or we just append
+		// the probable path.
+		// Simpler approach: Check logic inside the Includes loop or pre-calculate here.
+		// Since we are inside loadConfigRecursive, we don't know absolute path quite yet without check.
+		// Let's modify the Includes loop to handle directories by looking for rules.yaml/main.yaml
+
+		blockCfg.Includes = append(blockCfg.Includes, expandedRS)
+	}
+
 	// Process included files
 	baseDir := filepath.Dir(path)
 	var allResources []ResourceConfig
@@ -119,6 +138,26 @@ func loadConfigRecursive(path string, visited map[string]bool) (*Config, error) 
 		absIncludePath, err := filepath.Abs(fullIncludePath)
 		if err != nil {
 			return nil, err
+		}
+
+		// Directory Check
+		info, err := os.Stat(absIncludePath)
+		if err == nil && info.IsDir() {
+			// Try rules.yaml first, then main.yaml
+			rulesPath := filepath.Join(absIncludePath, "rules.yaml")
+			if _, err := os.Stat(rulesPath); err == nil {
+				absIncludePath = rulesPath
+			} else {
+				mainPath := filepath.Join(absIncludePath, "main.yaml")
+				if _, err := os.Stat(mainPath); err == nil {
+					absIncludePath = mainPath
+				} else {
+					// Directory exists but no known config file? skip or error?
+					// Use filepath.Join just to fail gracefully later or log warning
+					// For now, let's proceed and fail at ReadFile
+					fmt.Printf("Warning: Included directory '%s' has no rules.yaml or main.yaml\n", includePath)
+				}
+			}
 		}
 
 		subCfg, err := loadConfigRecursive(absIncludePath, visited)
