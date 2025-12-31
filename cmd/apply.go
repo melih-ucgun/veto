@@ -130,6 +130,7 @@ func runApply(configFile string, isDryRun bool) error {
 				Name:   name,
 				Type:   res.Type,
 				State:  state,
+				When:   res.When,
 				Params: res.Params,
 			})
 		}

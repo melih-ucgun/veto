@@ -23,6 +23,7 @@ type ResourceConfig struct {
 	Name      string                 `yaml:"name"`
 	Type      string                 `yaml:"type"`
 	State     string                 `yaml:"state"`
+	When      string                 `yaml:"when"` // Conditional execution logic
 	DependsOn []string               `yaml:"depends_on"`
 	Params    map[string]interface{} `yaml:"parameters"`
 }

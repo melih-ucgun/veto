@@ -17,6 +17,7 @@ type ConfigItem struct {
 	Name   string
 	Type   string
 	State  string
+	When   string // Condition to evaluate
 	Params map[string]interface{}
 }
 
@@ -113,6 +114,21 @@ func (e *Engine) RunParallel(layer []ConfigItem, createFn ResourceCreator) error
 				it.Params = make(map[string]interface{})
 			}
 			it.Params["state"] = it.State
+
+			// 0. Check Condition (When)
+			if it.When != "" {
+				shouldRun, err := EvaluateCondition(it.When, e.Context)
+				if err != nil {
+					pterm.Error.Printf("[%s] Condition Error: %v\n", it.Name, err)
+					errChan <- err
+					return
+				}
+				if !shouldRun {
+					// pterm.Gray is a color, to print we need to creating a style or use Printf from a style
+					pterm.NewStyle(pterm.FgGray).Printf("⚪ [%s] Skipped (Condition not met: %s)\n", it.Name, it.When)
+					return
+				}
+			}
 
 			// 1. Create resource
 			res, err := createFn(it.Type, it.Name, it.Params, e.Context)

@@ -4,6 +4,7 @@ go 1.25.5
 
 require (
 	filippo.io/age v1.3.1
+	github.com/expr-lang/expr v1.17.7
 	github.com/joho/godotenv v1.5.1
 	github.com/pterm/pterm v0.12.82
 	github.com/spf13/cobra v1.10.2

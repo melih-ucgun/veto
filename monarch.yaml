@@ -1,6 +1,23 @@
 resources:
-  - id: test-file
+  - id: always-run
     type: file
     params:
-      path: /tmp/monarch-test
-      content: "Hello Monarch"
+      name: always-run
+      path: /tmp/always
+      content: "I always run"
+
+  - id: only-linux
+    type: file
+    when: 'OS == "linux"'
+    params:
+      name: only-linux
+      path: /tmp/linux-only
+      content: "I run on Linux"
+
+  - id: never-run
+    type: file
+    when: 'OS == "windows"'
+    params:
+      name: never-run
+      path: /tmp/windows-only
+      content: "I should be skipped"
