@@ -116,7 +116,11 @@ func (e *Engine) Run(items []ConfigItem, createFn ResourceCreator) error {
 			transaction.Changes = append(transaction.Changes, change)
 
 		} else {
-			fmt.Printf("ℹ️  [%s] OK\n", item.Name)
+			msg := "OK"
+			if result.Message != "" {
+				msg = result.Message
+			}
+			pterm.Info.Printf("[%s] %s: %s\n", item.Type, item.Name, msg)
 		}
 
 		// 3. Save State (If not DryRun)
@@ -253,7 +257,11 @@ func (e *Engine) RunParallel(layer []ConfigItem, createFn ResourceCreator) error
 
 			} else {
 				// No Change (Info or Skipped)
-				pterm.Info.Printf("[%s] %s: OK\n", it.Type, it.Name)
+				msg := "OK"
+				if result.Message != "" {
+					msg = result.Message
+				}
+				pterm.Info.Printf("[%s] %s: %s\n", it.Type, it.Name, msg)
 			}
 
 			// 3. Save State

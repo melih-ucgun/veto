@@ -19,6 +19,11 @@ build: workers
 	@echo "✅ Veto hazır! Çalıştırmak için: ./$(BINARY_NAME)"
 
 # Temizlik
-clean:
-	rm -f $(BINARY_NAME)
 	rm -f $(EMBED_DIR)/veto-linux-*
+
+# Entegrasyon Testleri (Docker)
+test-integration:
+	@echo "🐳 Docker Entegrasyon Testleri Başlatılıyor..."
+	docker build -t veto-integration -f tests/integration/Dockerfile .
+	docker run --rm --privileged veto-integration
+	@echo "✅ Entegrasyon testleri tamamlandı."

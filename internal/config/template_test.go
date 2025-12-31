@@ -37,8 +37,8 @@ func TestExecuteTemplate(t *testing.T) {
 			name:    "Eksik Değişken (Default Davranış)",
 			content: "Değer: {{ .yok }}",
 			vars:    map[string]interface{}{},
-			want:    "Değer: <no value>", // Go text/template varsayılanı
-			wantErr: false,
+			want:    "",
+			wantErr: true, // Implementation uses Option("missingkey=error")
 		},
 	}
 

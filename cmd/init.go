@@ -13,6 +13,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var autoConfirm bool
+
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initialize Veto system profile",
@@ -24,6 +26,7 @@ var initCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(initCmd)
+	initCmd.Flags().BoolVarP(&autoConfirm, "yes", "y", false, "Skip interactive prompts and save immediately")
 }
 
 func runInit() {
@@ -39,21 +42,25 @@ func runInit() {
 	// Show Results
 	displaySystemInfo(detectedCtx)
 
-	// Interaction Loop
-	selection, _ := pterm.DefaultInteractiveSelect.
-		WithOptions([]string{"Yes, looks good", "Customize", "Cancel"}).
-		Show("Do you want to save this system profile?")
+	if autoConfirm {
+		pterm.Info.Println("Auto-confirm enabled. Saving profile...")
+	} else {
+		// Interaction Loop
+		selection, _ := pterm.DefaultInteractiveSelect.
+			WithOptions([]string{"Yes, looks good", "Customize", "Cancel"}).
+			Show("Do you want to save this system profile?")
 
-	if selection == "Cancel" {
-		pterm.Info.Println("Initialization cancelled.")
-		return
-	}
+		if selection == "Cancel" {
+			pterm.Info.Println("Initialization cancelled.")
+			return
+		}
 
-	if selection == "Customize" {
-		customizeProfile(detectedCtx)
-		pterm.Println()
-		pterm.Info.Println("Updated Profile:")
-		displaySystemInfo(detectedCtx)
+		if selection == "Customize" {
+			customizeProfile(detectedCtx)
+			pterm.Println()
+			pterm.Info.Println("Updated Profile:")
+			displaySystemInfo(detectedCtx)
+		}
 	}
 
 	// Save
