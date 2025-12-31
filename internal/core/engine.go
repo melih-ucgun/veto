@@ -5,6 +5,8 @@ import (
 	"sync"
 
 	"github.com/pterm/pterm"
+
+	"github.com/melih-ucgun/monarch/internal/config"
 )
 
 // StateUpdater interface allows Engine to be independent of the state package.
@@ -130,6 +132,13 @@ func (e *Engine) RunParallel(layer []ConfigItem, createFn ResourceCreator) error
 				}
 			}
 
+			// 0.5 Render Templates in Params
+			if err := renderParams(it.Params, e.Context); err != nil {
+				pterm.Error.Printf("[%s] Template Error: %v\n", it.Name, err)
+				errChan <- err
+				return
+			}
+
 			// 1. Create resource
 			res, err := createFn(it.Type, it.Name, it.Params, e.Context)
 			if err != nil {
@@ -228,4 +237,39 @@ func (e *Engine) rollback(resources []ApplyableResource) {
 			}
 		}
 	}
+}
+
+// renderParams traverses the map and renders any string values as templates.
+func renderParams(params map[string]interface{}, ctx *SystemContext) error {
+	for k, v := range params {
+		switch val := v.(type) {
+		case string:
+			rendered, err := config.ExecuteTemplate(val, ctx)
+			if err != nil {
+				return fmt.Errorf("param '%s': %w", k, err)
+			}
+			params[k] = rendered
+		case map[string]interface{}:
+			// Recursive
+			if err := renderParams(val, ctx); err != nil {
+				return err
+			}
+		case []interface{}:
+			// Iterate slice
+			for i, item := range val {
+				if str, ok := item.(string); ok {
+					rendered, err := config.ExecuteTemplate(str, ctx)
+					if err != nil {
+						return fmt.Errorf("param '%s' index %d: %w", k, i, err)
+					}
+					val[i] = rendered
+				} else if subMap, ok := item.(map[string]interface{}); ok {
+					if err := renderParams(subMap, ctx); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+	return nil
 }

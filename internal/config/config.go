@@ -25,7 +25,7 @@ type ResourceConfig struct {
 	State     string                 `yaml:"state"`
 	When      string                 `yaml:"when"` // Conditional execution logic
 	DependsOn []string               `yaml:"depends_on"`
-	Params    map[string]interface{} `yaml:"parameters"`
+	Params    map[string]interface{} `yaml:"params"`
 }
 
 // Host holds connection information for a remote host.

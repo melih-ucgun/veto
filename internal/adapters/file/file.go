@@ -109,7 +109,11 @@ func (r *FileAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 	}
 
 	if ctx.DryRun {
-		return core.SuccessChange(fmt.Sprintf("[DryRun] Would %s file %s", r.State, r.Path)), nil
+		msg := fmt.Sprintf("[DryRun] Would %s file %s", r.State, r.Path)
+		if r.Content != "" {
+			msg += fmt.Sprintf("\nContent Preview:\n%s", r.Content)
+		}
+		return core.SuccessChange(msg), nil
 	}
 
 	// YEDEKLEME

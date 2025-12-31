@@ -5,15 +5,17 @@ import (
 	"text/template"
 )
 
-// ExecuteTemplate, verilen içeriği (content) sağlanan değişkenler (vars) ile işler.
-func ExecuteTemplate(content string, vars map[string]interface{}) (string, error) {
-	tmpl, err := template.New("monarch").Parse(content)
+// ExecuteTemplate, verilen içeriği (content) sağlanan veri (data) ile işler.
+// data genellikle *core.SystemContext olacaktır.
+func ExecuteTemplate(content string, data interface{}) (string, error) {
+	// "MissingKeyError" ile, olmayan bir değişken kullanılırsa hata vermesini sağlıyoruz.
+	tmpl, err := template.New("monarch").Option("missingkey=error").Parse(content)
 	if err != nil {
 		return "", err
 	}
 
 	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, vars); err != nil {
+	if err := tmpl.Execute(&buf, data); err != nil {
 		return "", err
 	}
 

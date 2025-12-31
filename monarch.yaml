@@ -1,23 +1,10 @@
 resources:
-  - id: always-run
+  - id: template-test
     type: file
     params:
-      name: always-run
-      path: /tmp/always
-      content: "I always run"
-
-  - id: only-linux
-    type: file
-    when: 'OS == "linux"'
-    params:
-      name: only-linux
-      path: /tmp/linux-only
-      content: "I run on Linux"
-
-  - id: never-run
-    type: file
-    when: 'OS == "windows"'
-    params:
-      name: never-run
-      path: /tmp/windows-only
-      content: "I should be skipped"
+      name: template-test
+      path: /tmp/monarch-template
+      content: |
+        Hello {{ .User }}!
+        You are running on {{ .Distro }} ({{ .FS.RootFSType }}).
+        Your CPU is {{ .Hardware.CPUModel }}.
