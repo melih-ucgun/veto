@@ -1,0 +1,5 @@
+resources:
+  - type: service
+    name: sshd
+    state: stopped
+    enabled: false
