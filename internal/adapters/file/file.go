@@ -14,6 +14,7 @@ type FileAdapter struct {
 	Path       string
 	Source     string // Kopyalanacak kaynak dosya (opsiyonel)
 	Content    string // Yazılacak içerik (opsiyonel)
+	Method     string // copy (default), symlink
 	Mode       os.FileMode
 	State      string // present, absent
 	BackupPath string // Yedeklenen dosyanın yolu
@@ -42,11 +43,17 @@ func NewFileAdapter(name string, params map[string]interface{}) *FileAdapter {
 		mode = os.FileMode(m)
 	}
 
+	method, _ := params["method"].(string)
+	if method == "" {
+		method = "copy"
+	}
+
 	return &FileAdapter{
 		BaseResource: core.BaseResource{Name: name, Type: "file"},
 		Path:         path,
 		Source:       source,
 		Content:      content,
+		Method:       method,
 		Mode:         mode,
 		State:        state,
 	}
@@ -93,13 +100,48 @@ func (r *FileAdapter) Check(ctx *core.SystemContext) (bool, error) {
 			return true, nil
 		}
 	} else if r.Source != "" {
-		// Source ile hedefi karşılaştır
-		same, err := compareFiles(r.Source, r.Path)
-		if err != nil {
-			return false, err
-		}
-		if !same {
-			return true, nil
+		if r.Method == "symlink" {
+			// Check if it is a symlink and points to correct source
+			if info.Mode()&os.ModeSymlink == 0 {
+				return true, nil // It's not a symlink
+			}
+
+			linkDest, err := os.Readlink(r.Path)
+			if err != nil {
+				return false, err
+			}
+
+			// Resolve paths for safe comparison
+			absSource, _ := filepath.Abs(r.Source)
+			absDest, _ := filepath.Abs(linkDest)
+
+			// If link is relative, we might need to be careful.
+			// But Veto usually uses absolute paths or relative to repo root internally.
+			// The r.Source coming from config might be relative "files/.zshrc".
+			// But we expect 'apply' logic to resolve r.Source to absolute before calling Check?
+			// Or we assume r.Source is what the link SAYS.
+
+			// For robustness: if r.Source is relative, and linkDest is absolute, or vice versa...
+			// If r.Source is relative, it is usually relative to the config file location (repo root).
+			// Symlinks can point to relative paths too!
+			// BUT, our 'veto add' created an absolute symlink or relative?
+			// Code in add.go: os.Symlink(storageAbsPath, absTarget) -> storageAbsPath is absolute.
+			// So we check absolute equality.
+
+			if absDest != absSource {
+				// Try checking if they resolve to same file?
+				return true, nil
+			}
+		} else {
+			// Copy Mode
+			// Source ile hedefi karşılaştır
+			same, err := compareFiles(r.Source, r.Path)
+			if err != nil {
+				return false, err
+			}
+			if !same {
+				return true, nil
+			}
 		}
 	}
 
@@ -149,8 +191,19 @@ func (r *FileAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 			return core.Failure(err, "Failed to write content"), err
 		}
 	} else if r.Source != "" {
-		if err := copyFile(r.Source, r.Path, r.Mode); err != nil {
-			return core.Failure(err, "Failed to copy file"), err
+		if r.Method == "symlink" {
+			// Delete existing if present (since we confirmed it's wrong in Check)
+			os.Remove(r.Path)
+
+			// Create symlink
+			// r.Source should be absolute path to the repo file
+			if err := os.Symlink(r.Source, r.Path); err != nil {
+				return core.Failure(err, "Failed to create symlink"), err
+			}
+		} else {
+			if err := copyFile(r.Source, r.Path, r.Mode); err != nil {
+				return core.Failure(err, "Failed to copy file"), err
+			}
 		}
 	}
 

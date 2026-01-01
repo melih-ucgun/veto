@@ -152,6 +152,77 @@ func detectResource(input string, ctx *core.SystemContext) *config.ResourceConfi
 }
 
 func appendResourceToConfig(path string, res config.ResourceConfig) error {
+	// If resource is a FILE, perform Move & Symlink logic
+	if res.Type == "file" {
+		targetPath := res.Params["path"].(string) // Original symlink target
+		absTarget, _ := filepath.Abs(targetPath)
+
+		// Calculate destination in .veto/files/
+		// Determine relative path from Home if possible, else just flatten name?
+		// Better: Maintain Directory Structure relative to Home.
+		homeDir, _ := os.UserHomeDir()
+
+		var storageRelPath string
+		if strings.HasPrefix(absTarget, homeDir) {
+			rel, _ := filepath.Rel(homeDir, absTarget)
+			storageRelPath = filepath.Join("files", rel) // .veto/files/...
+		} else {
+			// Outside home? Use full path as structure
+			storageRelPath = filepath.Join("files", "root", absTarget)
+		}
+
+		// .veto directory root (where system.yaml is)
+		vetoRoot := filepath.Dir(path)
+		storageAbsPath := filepath.Join(vetoRoot, storageRelPath)
+
+		// 1. Create directory structure
+		if err := os.MkdirAll(filepath.Dir(storageAbsPath), 0755); err != nil {
+			return fmt.Errorf("failed to create storage dir: %w", err)
+		}
+
+		// 2. Move File (if it's not already there)
+		// Check if source is already a symlink pointing to our storage?
+		info, err := os.Lstat(absTarget)
+		if err == nil {
+			if info.Mode()&os.ModeSymlink != 0 {
+				linkDest, _ := os.Readlink(absTarget)
+				if linkDest == storageAbsPath {
+					pterm.Info.Println("File is already a symlink to storage. updating config only.")
+				} else {
+					pterm.Warning.Printf("File is a symlink to %s. Replacing with Veto managed link.\n", linkDest)
+					// Handle conflict? For now, we assume user wants to manage THIS file.
+					// But we can't move a symlink content easily unless we resolve it.
+					// Let's copy the CONTENT of what it points to, then replace link.
+					// For MVP: Simple Rename if regular file.
+				}
+			} else {
+				// Regular file: Move it.
+				if err := os.Rename(absTarget, storageAbsPath); err != nil {
+					return fmt.Errorf("failed to move file to storage: %w", err)
+				}
+				pterm.Success.Printf("Moved %s -> %s\n", absTarget, storageRelPath)
+
+				// 3. Create Symlink
+				if err := os.Symlink(storageAbsPath, absTarget); err != nil {
+					// Rolling back move?
+					os.Rename(storageAbsPath, absTarget)
+					return fmt.Errorf("failed to create symlink: %w", err)
+				}
+			}
+		}
+
+		// Update Resource Params
+		res.Params["source"] = storageRelPath // Relative to system.yaml
+		res.Params["method"] = "symlink"
+
+		// Sanitize Target Path: Replace /home/user with ${HOME}
+		sanitizedTarget := absTarget
+		if strings.HasPrefix(absTarget, homeDir) {
+			sanitizedTarget = strings.Replace(absTarget, homeDir, "${HOME}", 1)
+		}
+		res.Params["path"] = sanitizedTarget
+	}
+
 	// Read existing
 	data, err := os.ReadFile(path)
 	if err != nil {
