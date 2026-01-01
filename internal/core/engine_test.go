@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// MockResource implements ApplyableResource and Revertable
+// MockResource implements Resource and Revertable
 type MockResource struct {
 	Name         string
 	Type         string
@@ -23,6 +23,14 @@ func (m *MockResource) GetType() string { return m.Type }
 func (m *MockResource) Apply(ctx *SystemContext) (Result, error) {
 	m.ApplyCalled = true
 	return m.ApplyResult, m.ApplyErr
+}
+
+func (m *MockResource) Check(ctx *SystemContext) (bool, error) {
+	return true, nil // Always true for tests unless specified
+}
+
+func (m *MockResource) Validate() error {
+	return nil
 }
 
 func (m *MockResource) Revert(ctx *SystemContext) error {
@@ -54,7 +62,7 @@ func TestEngine_RunParallel(t *testing.T) {
 		res2 := &MockResource{Name: "res2", ApplyResult: SuccessNoChange("ok")}
 
 		// Mock Creator function
-		createFn := func(t, n string, p map[string]interface{}, c *SystemContext) (ApplyableResource, error) {
+		createFn := func(t, n string, p map[string]interface{}, c *SystemContext) (Resource, error) {
 			if n == "res1" {
 				return res1, nil
 			}
@@ -88,7 +96,7 @@ func TestEngine_RunParallel(t *testing.T) {
 		// res2 fails
 		res2 := &MockResource{Name: "res2", Type: "test", ApplyErr: errors.New("fail")}
 
-		createFn := func(t, n string, p map[string]interface{}, c *SystemContext) (ApplyableResource, error) {
+		createFn := func(t, n string, p map[string]interface{}, c *SystemContext) (Resource, error) {
 			if n == "res1" {
 				return res1, nil
 			}
@@ -135,7 +143,7 @@ func TestEngine_RunParallel(t *testing.T) {
 		resB := &MockResource{Name: "resB", ApplyResult: SuccessChange("ok")}
 		resC := &MockResource{Name: "resC", ApplyErr: errors.New("fail")}
 
-		createFn := func(t, n string, p map[string]interface{}, c *SystemContext) (ApplyableResource, error) {
+		createFn := func(t, n string, p map[string]interface{}, c *SystemContext) (Resource, error) {
 			if n == "resB" {
 				return resB, nil
 			}

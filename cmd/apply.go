@@ -128,7 +128,7 @@ func runApply(configFile string, isDryRun bool) error {
 	eng := core.NewEngine(ctx, stateMgr)
 
 	// 6. Fire Engine
-	createFn := func(t, n string, p map[string]interface{}, c *core.SystemContext) (core.ApplyableResource, error) {
+	createFn := func(t, n string, p map[string]interface{}, c *core.SystemContext) (core.Resource, error) {
 		return resource.CreateResourceWithParams(t, n, p, c)
 	}
 

@@ -29,7 +29,7 @@ type ConfigItem struct {
 type Engine struct {
 	Context        *SystemContext
 	StateUpdater   StateUpdater // Optional: State manager
-	AppliedHistory []ApplyableResource
+	AppliedHistory []Resource
 }
 
 // NewEngine creates a new engine instance.
@@ -43,14 +43,7 @@ func NewEngine(ctx *SystemContext, updater StateUpdater) *Engine {
 }
 
 // ResourceCreator fonksiyon tipi
-type ResourceCreator func(resType, name string, params map[string]interface{}, ctx *SystemContext) (ApplyableResource, error)
-
-// ApplyableResource interface
-type ApplyableResource interface {
-	Apply(ctx *SystemContext) (Result, error)
-	GetName() string
-	GetType() string
-}
+type ResourceCreator func(resType, name string, params map[string]interface{}, ctx *SystemContext) (Resource, error)
 
 // Run processes the given configuration list.
 func (e *Engine) Run(items []ConfigItem, createFn ResourceCreator) error {
@@ -155,8 +148,8 @@ func (e *Engine) Run(items []ConfigItem, createFn ResourceCreator) error {
 func (e *Engine) RunParallel(layer []ConfigItem, createFn ResourceCreator) error {
 	var wg sync.WaitGroup
 	errChan := make(chan error, len(layer))
-	var updatedResources []ApplyableResource // Track successful ones (For Rollback)
-	var mu sync.Mutex                        // lock for updatedResources
+	var updatedResources []Resource // Track successful ones (For Rollback)
+	var mu sync.Mutex               // lock for updatedResources
 
 	// Transaction recording
 	transaction := state.Transaction{
@@ -316,13 +309,93 @@ func (e *Engine) RunParallel(layer []ConfigItem, createFn ResourceCreator) error
 	// We add FIFO to AppliedHistory (append).
 	// Example: Layer0 (A, B) -> AppliedHistory=[A, B]
 	// Layer1 (C, D) -> Fail. CurrentRevert(C). HistoryRevert(A, B) -> B revert, A revert. Correct.
-	e.AppliedHistory = append(e.AppliedHistory, updatedResources...)
-
 	return nil
 }
 
+// PlanResult represents the outcome of a Plan operation.
+type PlanResult struct {
+	Changes []PlanChange
+}
+
+// PlanChange represents a single proposed change.
+type PlanChange struct {
+	Type   string
+	Name   string
+	Action string // "create", "modify", "noop"
+	Diff   string // Optional detailed diff
+}
+
+// Plan generates a preview of changes without applying them.
+func (e *Engine) Plan(items []ConfigItem, createFn ResourceCreator) (*PlanResult, error) {
+	result := &PlanResult{
+		Changes: []PlanChange{},
+	}
+
+	for _, item := range items {
+		// Params preparation
+		if item.Params == nil {
+			item.Params = make(map[string]interface{})
+		}
+		item.Params["state"] = item.State
+
+		// 0. Check Condition (When)
+		if item.When != "" {
+			shouldRun, err := EvaluateCondition(item.When, e.Context)
+			if err != nil {
+				return nil, fmt.Errorf("[%s] Condition Error: %w", item.Name, err)
+			}
+			if !shouldRun {
+				continue // Skip silently or add as "skipped"
+			}
+		}
+
+		// 0.5 Render Templates
+		if err := renderParams(item.Params, e.Context); err != nil {
+			return nil, fmt.Errorf("[%s] Template Error: %w", item.Name, err)
+		}
+
+		// 1. Create resource
+		resApp, err := createFn(item.Type, item.Name, item.Params, e.Context)
+		if err != nil {
+			return nil, fmt.Errorf("[%s] Creation Error: %w", item.Name, err)
+		}
+
+		// 2. Check State
+		var action string
+		var diff string
+
+		if checker, ok := resApp.(interface {
+			Check(ctx *SystemContext) (bool, error)
+		}); ok {
+			needsAction, err := checker.Check(e.Context)
+			if err != nil {
+				return nil, fmt.Errorf("[%s] Check Error: %w", item.Name, err)
+			}
+
+			if needsAction {
+				action = "apply"
+			} else {
+				action = "noop"
+			}
+		} else {
+			action = "unknown"
+		}
+
+		if action != "noop" {
+			result.Changes = append(result.Changes, PlanChange{
+				Type:   item.Type,
+				Name:   item.Name,
+				Action: action,
+				Diff:   diff,
+			})
+		}
+	}
+
+	return result, nil
+}
+
 // rollback reverts the given list of resources in reverse order.
-func (e *Engine) rollback(resources []ApplyableResource) {
+func (e *Engine) rollback(resources []Resource) {
 	// Go in reverse order
 	for i := len(resources) - 1; i >= 0; i-- {
 		res := resources[i]
