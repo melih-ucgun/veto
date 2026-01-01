@@ -1,6 +1,6 @@
 os: linux
 kernel: 6.18.2-2-cachyos
-distro: cachyos
+distro: CachyOs
 version: Rolling Release
 init_system: systemd
 hostname: monarch
@@ -13,7 +13,7 @@ hardware:
 env:
     shell: /usr/bin/zsh
     lang: en_US.UTF-8
-    term: xterm-256color
+    term: xterm-kitty
     timezone: Europe/Istanbul
 fs:
     root_fs_type: btrfs
