@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/melih-ucgun/veto/internal/config"
+	"github.com/melih-ucgun/veto/internal/core"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -57,6 +58,18 @@ func (t *SSHTransport) Close() error {
 		return t.client.Close()
 	}
 	return nil
+}
+
+// Execute runs a command and returns its combined output.
+func (t *SSHTransport) Execute(ctx context.Context, cmd string) (string, error) {
+	session, err := t.client.NewSession()
+	if err != nil {
+		return "", err
+	}
+	defer session.Close()
+
+	out, err := session.CombinedOutput(cmd)
+	return string(out), err
 }
 
 // RunRemoteSecure: Komutu çalıştırır, sudo gerekirse şifreyi pipe ile verir.
@@ -137,8 +150,18 @@ func (t *SSHTransport) CopyFile(ctx context.Context, localPath, remotePath strin
 }
 
 func (t *SSHTransport) DownloadFile(ctx context.Context, remotePath, localPath string) error {
-	// İleride download özelliği gerekirse burası doldurulabilir.
+	// İleride download özelliği (SFTP tabanlı) gerekirse burası doldurulabilir.
+	return fmt.Errorf("DownloadFile not implemented for SSHTransport (Phase 2)")
+}
+
+func (t *SSHTransport) GetFileSystem() core.FileSystem {
+	// Bu aşamada henüz SFTPFS yok, nil dönebilir veya ileride dolacak.
 	return nil
+}
+
+func (t *SSHTransport) GetOS(ctx context.Context) (string, error) {
+	osName, _, err := t.GetRemoteSystemInfo(ctx)
+	return osName, err
 }
 
 func (t *SSHTransport) GetRemoteSystemInfo(ctx context.Context) (string, string, error) {

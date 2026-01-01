@@ -31,6 +31,9 @@ type SystemContext struct {
 	// Dosya Sistemi Soyutlaması (İşlemler)
 	FS FileSystem `yaml:"-"`
 
+	// Taşıma Katmanı (Yerel veya Uzak)
+	Transport Transport `yaml:"-"`
+
 	// Kullanıcı Bilgileri
 	User    string `yaml:"user"`     // Mevcut kullanıcı
 	HomeDir string `yaml:"home_dir"` // Kullanıcının ev dizini
@@ -75,7 +78,8 @@ func NewSystemContext(dryRun bool) *SystemContext {
 		DryRun:     dryRun,
 		Stdout:     os.Stdout,
 		Stderr:     os.Stderr,
-		FS:         &RealFS{}, // Devault to local filesystem
+		FS:         &RealFS{}, // Default to local filesystem
+		Transport:  &LocalTransport{},
 		// Diğer alt structlar zero-value olarak başlar, detector tarafından doldurulur.
 	}
 }
