@@ -70,7 +70,28 @@ func runInit() {
 	}
 
 	pterm.Success.Println("System profile saved to .veto/system.yaml")
-	pterm.Info.Println("You can now run 'veto apply' and it will use this context!")
+
+	// Offer to Import Resources
+	pterm.Println()
+	if !autoConfirm {
+		result, _ := pterm.DefaultInteractiveConfirm.
+			WithDefaultText("Would you like to scan and import existing system resources?").
+			WithDefaultValue(true).
+			Show()
+
+		if result {
+			RunImportInteractive("system.yaml", false)
+		} else {
+			pterm.Info.Println("Skipping import. You can run 'veto import' later.")
+		}
+	} else {
+		// Auto-confirm enabled? Maybe specific flag for auto-import?
+		// For now, let's just log info.
+		pterm.Info.Println("Skipping auto-import (run 'veto import' manually or use interactive mode).")
+	}
+
+	pterm.Println()
+	pterm.Info.Println("You can now run 'veto apply' to correct your system state!")
 }
 
 func displaySystemInfo(ctx *core.SystemContext) {
