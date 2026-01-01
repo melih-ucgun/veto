@@ -8,9 +8,12 @@ import (
 )
 
 func init() {
-	core.RegisterResource("exec", func(name string, params map[string]interface{}, ctx *core.SystemContext) (core.Resource, error) {
+	factory := func(name string, params map[string]interface{}, ctx *core.SystemContext) (core.Resource, error) {
 		return NewExecAdapter(name, params), nil
-	})
+	}
+	core.RegisterResource("exec", factory)
+	core.RegisterResource("shell", factory)
+	core.RegisterResource("cmd", factory)
 }
 
 type ExecAdapter struct {

@@ -16,9 +16,11 @@ type ServiceAdapter struct {
 }
 
 func init() {
-	core.RegisterResource("service", func(name string, params map[string]interface{}, ctx *core.SystemContext) (core.Resource, error) {
+	factory := func(name string, params map[string]interface{}, ctx *core.SystemContext) (core.Resource, error) {
 		return NewServiceAdapter(name, params, ctx), nil
-	})
+	}
+	core.RegisterResource("service", factory)
+	core.RegisterResource("systemd", factory)
 }
 
 func NewServiceAdapter(name string, params map[string]interface{}, ctx *core.SystemContext) core.Resource {
