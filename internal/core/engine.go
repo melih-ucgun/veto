@@ -306,8 +306,8 @@ func (e *Engine) RunParallel(layer []ConfigItem, createFn ResourceCreator) error
 	// Add successful ones to global history
 	// Note: Must be LIFO for Revert order. rollback function iterates specifically in reverse.
 	// We add FIFO to AppliedHistory (append).
-	// Example: Layer0 (A, B) -> AppliedHistory=[A, B]
-	// Layer1 (C, D) -> Fail. CurrentRevert(C). HistoryRevert(A, B) -> B revert, A revert. Correct.
+	e.AppliedHistory = append(e.AppliedHistory, updatedResources...)
+
 	return nil
 }
 
@@ -452,65 +452,93 @@ func renderParams(params map[string]interface{}, ctx *SystemContext) error {
 }
 
 // Prune identifies unmanaged resources and removes them upon confirmation.
-// Currently only supports packages.
+// Supports any resource type that implements the Lister interface.
 func (e *Engine) Prune(configItems []ConfigItem, createFn ResourceCreator) error {
-	// 1. Collect Managed Packages
-	managedPackages := make(map[string]bool)
-	for _, item := range configItems {
-		if item.Type == "pkg" {
-			managedPackages[item.Name] = true
+	// 1. Identify Resource Types present in config or supported for pruning
+	targetTypes := []string{"pkg", "service"}
+
+	pterm.Println()
+	pterm.DefaultHeader.WithFullWidth().
+		WithBackgroundStyle(pterm.NewStyle(pterm.BgRed)).
+		WithTextStyle(pterm.NewStyle(pterm.FgWhite, pterm.Bold)).
+		Println("PRUNE MODE (Destructive)")
+
+	totalUnmanaged := 0
+	type PruneTask struct {
+		Type      string
+		Resources []string
+		Adapter   Lister
+	}
+	var tasks []PruneTask
+
+	for _, resType := range targetTypes {
+		// Collect Managed Resources for this type
+		managed := make(map[string]bool)
+		for _, item := range configItems {
+			if item.Type == resType {
+				managed[item.Name] = true
+			}
+		}
+
+		// Create dummy adapter for listing
+		// Use a fixed name "prune_helper" to get an instance
+		dummyRes, err := createFn(resType, "prune_helper", nil, e.Context)
+		if err != nil {
+			// Resource type might not be registered or supported on this OS
+			continue
+		}
+
+		lister, ok := dummyRes.(Lister)
+		if !ok {
+			// Type does not support listing, skip
+			continue
+		}
+
+		// List Installed
+		pterm.Info.Printf("Analyzing %s resources...\n", resType)
+		installed, err := lister.ListInstalled(e.Context)
+		if err != nil {
+			pterm.Warning.Printf("Failed to list installed %s: %v\n", resType, err)
+			continue
+		}
+
+		// Calculate Diff
+		var unmanaged []string
+		for _, name := range installed {
+			if !managed[name] {
+				unmanaged = append(unmanaged, name)
+			}
+		}
+
+		if len(unmanaged) > 0 {
+			tasks = append(tasks, PruneTask{
+				Type:      resType,
+				Resources: unmanaged,
+				Adapter:   lister,
+			})
+			totalUnmanaged += len(unmanaged)
+
+			pterm.Error.Printf("Found %d unmanaged %s resources:\n", len(unmanaged), resType)
+			for i, name := range unmanaged {
+				if i < 5 {
+					fmt.Printf(" - %s\n", name)
+				} else {
+					fmt.Printf(" ... and %d more\n", len(unmanaged)-5)
+					break
+				}
+			}
 		}
 	}
 
-	// 2. Create a temporary instance of the package adapter to listing
-	// We need a way to get the correct adapter.
-	// Since we don't have a factory here, we rely on createFn to give us a dummy.
-	// We'll try to create a dummy package resource called "prune_helper"
-	dummyRes, err := createFn("pkg", "prune_helper", nil, e.Context)
-	if err != nil {
-		return fmt.Errorf("failed to create helper resource for pruning: %w", err)
-	}
-
-	lister, ok := dummyRes.(Lister)
-	if !ok {
-		return fmt.Errorf("resource type 'pkg' does not support listing (Lister interface)")
-	}
-
-	// 3. List Installed Packages
-	pterm.Info.Println(" analyzing installed packages...")
-	installed, err := lister.ListInstalled(e.Context)
-	if err != nil {
-		return fmt.Errorf("failed to list installed packages: %w", err)
-	}
-
-	// 4. Calculate Diff (Unmanaged = Installed - Managed)
-	var unmanaged []string
-	for _, pkg := range installed {
-		if !managedPackages[pkg] {
-			unmanaged = append(unmanaged, pkg)
-		}
-	}
-
-	if len(unmanaged) == 0 {
-		pterm.Success.Println("System is clean! No unmanaged packages found.")
+	if totalUnmanaged == 0 {
+		pterm.Success.Println("System is clean! No unmanaged resources found.")
 		return nil
 	}
 
-	// 5. User Confirmation (Layer 1)
+	// Double Confirmation
 	pterm.Println()
-	pterm.Error.Printf("Found %d unmanaged packages:\n", len(unmanaged))
-	for i, pkg := range unmanaged {
-		if i < 10 {
-			fmt.Printf(" - %s\n", pkg)
-		} else {
-			fmt.Printf(" ... and %d more\n", len(unmanaged)-10)
-			break
-		}
-	}
-	pterm.Println()
-
 	result, _ := pterm.DefaultInteractiveConfirm.
-		WithDefaultText("Are you sure you want to delete these resources?").
+		WithDefaultText(fmt.Sprintf("Are you sure you want to delete/disable these %d resources?", totalUnmanaged)).
 		WithDefaultValue(false).
 		Show()
 
@@ -519,7 +547,6 @@ func (e *Engine) Prune(configItems []ConfigItem, createFn ResourceCreator) error
 		return nil
 	}
 
-	// 6. User Confirmation (Layer 2 - Strict)
 	pterm.Println()
 	pterm.Warning.Println("This operation is DESTRUCTIVE.")
 	input, _ := pterm.DefaultInteractiveTextInput.
@@ -531,36 +558,40 @@ func (e *Engine) Prune(configItems []ConfigItem, createFn ResourceCreator) error
 		return nil
 	}
 
-	// 7. Execute Removal
+	// Execution
 	pterm.Println()
 	pterm.Info.Println("Starting cleanup...")
 
-	// Create a new adapter for each removal to use the existing Apply logic (state=absent)
-	for _, pkgName := range unmanaged {
-		pterm.Printf("Pruning %s... ", pkgName)
+	for _, task := range tasks {
+		for _, name := range task.Resources {
+			pterm.Printf("Pruning [%s] %s... ", task.Type, name)
 
-		// Create resource with state=absent
-		params := map[string]interface{}{
-			"state": "absent",
-		}
+			// Create resource with state=absent (for pkg) or appropriate state for services
+			params := make(map[string]interface{})
+			if task.Type == "service" {
+				params["enabled"] = false
+				params["state"] = "stopped"
+			} else {
+				params["state"] = "absent"
+			}
 
-		res, err := createFn("pkg", pkgName, params, e.Context)
-		if err != nil {
-			pterm.Error.Printf("Failed to create resource for %s: %v\n", pkgName, err)
-			continue
-		}
+			res, err := createFn(task.Type, name, params, e.Context)
+			if err != nil {
+				pterm.Error.Printf("Failed to create resource handle: %v\n", err)
+				continue
+			}
 
-		if e.Context.DryRun {
-			pterm.Success.Println("[DryRun] Removed")
-			continue
-		}
+			if e.Context.DryRun {
+				pterm.Success.Println("[DryRun] Pruned")
+				continue
+			}
 
-		// Apply (Remove)
-		_, applyErr := res.Apply(e.Context)
-		if applyErr != nil {
-			pterm.Error.Printf("Failed: %v\n", applyErr)
-		} else {
-			pterm.Success.Println("Removed")
+			_, err = res.Apply(e.Context)
+			if err != nil {
+				pterm.Error.Printf("Failed: %v\n", err)
+			} else {
+				pterm.Success.Println("Pruned")
+			}
 		}
 	}
 

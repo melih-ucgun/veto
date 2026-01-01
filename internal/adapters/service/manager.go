@@ -15,4 +15,7 @@ type ServiceManager interface {
 	Stop(service string) error
 	Restart(service string) error
 	Reload(service string) error
+
+	// Discovery
+	ListEnabled() ([]string, error)
 }

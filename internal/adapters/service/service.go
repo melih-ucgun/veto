@@ -167,3 +167,13 @@ func (r *ServiceAdapter) Revert(ctx *core.SystemContext) error {
 	}
 	return nil
 }
+
+// ListInstalled satisfies the core.Lister interface for Prune operations.
+// It returns a list of enabled services.
+func (r *ServiceAdapter) ListInstalled(ctx *core.SystemContext) ([]string, error) {
+	services, err := r.Manager.ListEnabled()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list enabled services: %w", err)
+	}
+	return services, nil
+}

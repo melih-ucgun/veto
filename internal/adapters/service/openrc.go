@@ -70,3 +70,6 @@ func (s *OpenRCManager) runUpdate(action, service, runlevel string) error {
 	}
 	return nil
 }
+func (s *OpenRCManager) ListEnabled() ([]string, error) {
+	return nil, fmt.Errorf("list enabled services is not supported for OpenRC yet")
+}

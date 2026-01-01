@@ -92,3 +92,6 @@ func (s *SysVinitManager) run(cmdName string, args ...string) error {
 	}
 	return nil
 }
+func (s *SysVinitManager) ListEnabled() ([]string, error) {
+	return nil, fmt.Errorf("list enabled services is not supported for SysVinit yet")
+}

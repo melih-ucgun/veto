@@ -61,3 +61,23 @@ func (s *SystemdManager) run(args ...string) error {
 	}
 	return nil
 }
+
+func (s *SystemdManager) ListEnabled() ([]string, error) {
+	// systemctl list-unit-files --state=enabled --type=service --no-legend --no-pager
+	cmd := exec.Command("systemctl", "list-unit-files", "--state=enabled", "--type=service", "--no-legend", "--no-pager")
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list enabled services: %w", err)
+	}
+
+	var services []string
+	lines := strings.Split(string(out), "\n")
+	for _, line := range lines {
+		fields := strings.Fields(line)
+		if len(fields) > 0 {
+			// fields[0] is service name (e.g., "sshd.service")
+			services = append(services, fields[0])
+		}
+	}
+	return services, nil
+}
