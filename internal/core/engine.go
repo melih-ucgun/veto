@@ -7,7 +7,6 @@ import (
 
 	"github.com/pterm/pterm"
 
-	"github.com/melih-ucgun/veto/internal/config"
 	"github.com/melih-ucgun/veto/internal/state"
 )
 
@@ -422,7 +421,7 @@ func renderParams(params map[string]interface{}, ctx *SystemContext) error {
 	for k, v := range params {
 		switch val := v.(type) {
 		case string:
-			rendered, err := config.ExecuteTemplate(val, ctx)
+			rendered, err := ExecuteTemplate(val, ctx)
 			if err != nil {
 				return fmt.Errorf("param '%s': %w", k, err)
 			}
@@ -436,7 +435,7 @@ func renderParams(params map[string]interface{}, ctx *SystemContext) error {
 			// Iterate slice
 			for i, item := range val {
 				if str, ok := item.(string); ok {
-					rendered, err := config.ExecuteTemplate(str, ctx)
+					rendered, err := ExecuteTemplate(str, ctx)
 					if err != nil {
 						return fmt.Errorf("param '%s' index %d: %w", k, i, err)
 					}
@@ -449,5 +448,121 @@ func renderParams(params map[string]interface{}, ctx *SystemContext) error {
 			}
 		}
 	}
+	return nil
+}
+
+// Prune identifies unmanaged resources and removes them upon confirmation.
+// Currently only supports packages.
+func (e *Engine) Prune(configItems []ConfigItem, createFn ResourceCreator) error {
+	// 1. Collect Managed Packages
+	managedPackages := make(map[string]bool)
+	for _, item := range configItems {
+		if item.Type == "pkg" {
+			managedPackages[item.Name] = true
+		}
+	}
+
+	// 2. Create a temporary instance of the package adapter to listing
+	// We need a way to get the correct adapter.
+	// Since we don't have a factory here, we rely on createFn to give us a dummy.
+	// We'll try to create a dummy package resource called "prune_helper"
+	dummyRes, err := createFn("pkg", "prune_helper", nil, e.Context)
+	if err != nil {
+		return fmt.Errorf("failed to create helper resource for pruning: %w", err)
+	}
+
+	lister, ok := dummyRes.(Lister)
+	if !ok {
+		return fmt.Errorf("resource type 'pkg' does not support listing (Lister interface)")
+	}
+
+	// 3. List Installed Packages
+	pterm.Info.Println(" analyzing installed packages...")
+	installed, err := lister.ListInstalled(e.Context)
+	if err != nil {
+		return fmt.Errorf("failed to list installed packages: %w", err)
+	}
+
+	// 4. Calculate Diff (Unmanaged = Installed - Managed)
+	var unmanaged []string
+	for _, pkg := range installed {
+		if !managedPackages[pkg] {
+			unmanaged = append(unmanaged, pkg)
+		}
+	}
+
+	if len(unmanaged) == 0 {
+		pterm.Success.Println("System is clean! No unmanaged packages found.")
+		return nil
+	}
+
+	// 5. User Confirmation (Layer 1)
+	pterm.Println()
+	pterm.Error.Printf("Found %d unmanaged packages:\n", len(unmanaged))
+	for i, pkg := range unmanaged {
+		if i < 10 {
+			fmt.Printf(" - %s\n", pkg)
+		} else {
+			fmt.Printf(" ... and %d more\n", len(unmanaged)-10)
+			break
+		}
+	}
+	pterm.Println()
+
+	result, _ := pterm.DefaultInteractiveConfirm.
+		WithDefaultText("Are you sure you want to delete these resources?").
+		WithDefaultValue(false).
+		Show()
+
+	if !result {
+		pterm.Info.Println("Prune cancelled.")
+		return nil
+	}
+
+	// 6. User Confirmation (Layer 2 - Strict)
+	pterm.Println()
+	pterm.Warning.Println("This operation is DESTRUCTIVE.")
+	input, _ := pterm.DefaultInteractiveTextInput.
+		WithDefaultText("Type 'confirm prune' to proceed").
+		Show()
+
+	if input != "confirm prune" {
+		pterm.Error.Println("Confirmation failed. Aborting.")
+		return nil
+	}
+
+	// 7. Execute Removal
+	pterm.Println()
+	pterm.Info.Println("Starting cleanup...")
+
+	// Create a new adapter for each removal to use the existing Apply logic (state=absent)
+	for _, pkgName := range unmanaged {
+		pterm.Printf("Pruning %s... ", pkgName)
+
+		// Create resource with state=absent
+		params := map[string]interface{}{
+			"state": "absent",
+		}
+
+		res, err := createFn("pkg", pkgName, params, e.Context)
+		if err != nil {
+			pterm.Error.Printf("Failed to create resource for %s: %v\n", pkgName, err)
+			continue
+		}
+
+		if e.Context.DryRun {
+			pterm.Success.Println("[DryRun] Removed")
+			continue
+		}
+
+		// Apply (Remove)
+		_, applyErr := res.Apply(e.Context)
+		if applyErr != nil {
+			pterm.Error.Printf("Failed: %v\n", applyErr)
+		} else {
+			pterm.Success.Println("Removed")
+		}
+	}
+
 	return nil
 }

@@ -15,6 +15,12 @@ type Revertable interface {
 	Revert(ctx *SystemContext) error
 }
 
+// Lister is the interface for resources that can enumerate installed instances.
+// Required for Prune operations.
+type Lister interface {
+	ListInstalled(ctx *SystemContext) ([]string, error)
+}
+
 // BaseResource holds common fields.
 type BaseResource struct {
 	Name string `yaml:"name"`

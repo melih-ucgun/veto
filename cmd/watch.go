@@ -27,7 +27,7 @@ Polls the file system every few seconds (configurable).`,
 		fmt.Println("Press Ctrl+C to stop.")
 
 		// İlk başlangıçta bir kez çalıştır
-		if err := runApply(configFile, dryRun, !withSnapshot); err != nil {
+		if err := runApply(configFile, dryRun, !withSnapshot, false); err != nil {
 			fmt.Printf("⚠️ Initial apply failed, but keeping watch...\n")
 		}
 
@@ -72,7 +72,7 @@ func watchLoop(filename string, intervalSec int) {
 
 			// Apply işlemini çağır (cmd/apply.go içindeki fonksiyonu kullanıyoruz)
 			// Not: runApply fonksiyonu aynı pakette (cmd) olduğu için erişilebilir.
-			if err := runApply(filename, dryRun, !withSnapshot); err != nil {
+			if err := runApply(filename, dryRun, !withSnapshot, false); err != nil {
 				fmt.Printf("❌ Apply failed: %v\n", err)
 			} else {
 				fmt.Printf("✅ Update successful. Watching for new changes...\n")

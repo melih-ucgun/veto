@@ -21,6 +21,7 @@ import (
 
 var dryRun bool
 var noSnapshot bool
+var pruneMode bool
 
 var applyCmd = &cobra.Command{
 	Use:   "apply [config_file]",
@@ -50,7 +51,7 @@ Updates .veto/state.json with the results.`,
 			}
 		}
 
-		if err := runApply(configFile, dryRun, noSnapshot); err != nil {
+		if err := runApply(configFile, dryRun, noSnapshot, pruneMode); err != nil {
 			os.Exit(1)
 		}
 	},
@@ -60,9 +61,10 @@ func init() {
 	rootCmd.AddCommand(applyCmd)
 	applyCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Simulate changes without applying them")
 	applyCmd.Flags().BoolVar(&noSnapshot, "no-snapshot", false, "Disable automatic BTRFS snapshots")
+	applyCmd.Flags().BoolVar(&pruneMode, "prune", false, "Remove unmanaged package resources (DESTRUCTIVE)")
 }
 
-func runApply(configFile string, isDryRun bool, skipSnapshot bool) error {
+func runApply(configFile string, isDryRun bool, skipSnapshot bool, isPrune bool) error {
 	// Header
 	pterm.DefaultHeader.WithFullWidth().WithBackgroundStyle(pterm.NewStyle(pterm.BgLightBlue)).
 		WithTextStyle(pterm.NewStyle(pterm.FgBlack, pterm.Bold)).
@@ -220,6 +222,29 @@ func runApply(configFile string, isDryRun bool, skipSnapshot bool) error {
 
 	if finalError != nil {
 		return finalError
+	}
+
+	// 7. Prune Logic (Strict Mode)
+	if isPrune {
+		pterm.Println()
+		pterm.DefaultHeader.WithFullWidth().
+			WithBackgroundStyle(pterm.NewStyle(pterm.BgRed)).
+			WithTextStyle(pterm.NewStyle(pterm.FgWhite, pterm.Bold)).
+			Println("PRUNE MODE (Destructive)")
+
+		// Convert all resources to ConfigItems for Prune
+		var allItems []core.ConfigItem
+		for _, res := range cfg.Resources {
+			allItems = append(allItems, core.ConfigItem{
+				Name: res.Name,
+				Type: res.Type,
+			})
+		}
+
+		if err := eng.Prune(allItems, createFn); err != nil {
+			pterm.Error.Printf("Prune failed: %v\n", err)
+			return err
+		}
 	}
 
 	pterm.Println()

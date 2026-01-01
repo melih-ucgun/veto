@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/melih-ucgun/veto/internal/core"
 )
@@ -90,4 +91,28 @@ func (r *PacmanAdapter) Revert(ctx *core.SystemContext) error {
 		return err
 	}
 	return nil
+}
+
+// ListInstalled returns a list of explicitly installed packages.
+func (r *PacmanAdapter) ListInstalled(ctx *core.SystemContext) ([]string, error) {
+	// pacman -Qqe: Query, Quiet (name only), Explicitly installed
+	output, err := runCommand("pacman", "-Qqe")
+	if err != nil {
+		return nil, fmt.Errorf("failed to list installed packages: %w", err)
+	}
+
+	// runCommand returns string.
+	// We need strings package.
+	// But let's verify if runCommand output is clean. Yes standard stdout.
+	return splitLines(output), nil
+}
+
+func splitLines(s string) []string {
+	var lines []string
+	for _, line := range strings.Split(s, "\n") {
+		if trimmed := strings.TrimSpace(line); trimmed != "" {
+			lines = append(lines, trimmed)
+		}
+	}
+	return lines
 }
