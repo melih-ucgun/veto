@@ -1,0 +1,2198 @@
+vars: {}
+includes: []
+imports: []
+rulesets: []
+resources:
+    - id: ""
+      name: 7zip
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: accountsservice
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: adwaita-icon-theme
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: alsa-firmware
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: alsa-plugins
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: alsa-utils
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: amd-ucode
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: antigravity
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: archiso
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: audacity
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: awesome-terminal-fonts
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: base
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: base-devel
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: bash-completion
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: bind
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: bitwarden
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: bitwig-studio
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: bluetui
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: bluez
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: bluez-libs
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: bluez-utils
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: bridge-utils
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: brightnessctl
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: btop
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: btrfs-assistant
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: btrfs-progs
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: cachyos-hello
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: cachyos-hooks
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: cachyos-kernel-manager
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: cachyos-keyring
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: cachyos-mirrorlist
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: cachyos-packageinstaller
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: cachyos-plymouth-bootanimation
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: cachyos-rate-mirrors
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: cachyos-settings
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: cachyos-snapper-support
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: cachyos-v3-mirrorlist
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: cachyos-v4-mirrorlist
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: cantarell-fonts
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: cardinal-vst
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: chwd
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: cliphist
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: cpupower
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: cryptsetup
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: decent-sampler-bin
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: device-mapper
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: diffutils
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: dmidecode
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: dnsmasq
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: dosfstools
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: duf
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: e2fsprogs
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: efibootmgr
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: efitools
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: ethtool
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: exfatprogs
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: extension-manager
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: fastfetch
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: ffmpegthumbnailer
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: file-roller
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: firejail
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: fsarchiver
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: fwupd
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: gamescope
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: git
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: gnome-keyring
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: godot
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: grilo-plugins
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: gst-libav
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: gst-plugin-pipewire
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: gst-plugin-va
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: gst-plugins-bad
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: gst-plugins-ugly
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: gvfs
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: gvfs-dnssd
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: gvfs-mtp
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: gvfs-nfs
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: gvfs-smb
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: gvfs-wsdd
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: haveged
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: hdparm
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: helium-browser-bin
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: hwdetect
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: hwinfo
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: hypridle
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: hyprland
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: hyprlock
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: hyprpaper
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: hyprpolkitagent
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: hyprshot
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: imv
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: iptables-nft
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: iwd
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: kitty
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: lazygit
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: less
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: lib32-mesa
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: lib32-opencl-mesa
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: lib32-vulkan-radeon
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: libdvdcss
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: libgsf
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: libguestfs
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: libnma
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: libopenraw
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: librewolf-bin
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: libvirt
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: libwnck3
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: limine
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: limine-mkinitcpio-hook
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: limine-snapper-sync
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: linux-cachyos
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: linux-cachyos-headers
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: linux-cachyos-lts
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: linux-cachyos-lts-headers
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: linux-firmware
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: lldb
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: localsend
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: logrotate
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: lsb-release
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: lsp-plugins
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: lsscsi
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: lvm2
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: mako
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: man-db
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: man-pages
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: mdadm
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: mesa-utils
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: mkinitcpio
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: modemmanager
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: mpv
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: nano
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: ncpamixer
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: neovim
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: network-manager-applet
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: networkmanager
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: networkmanager-dmenu
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: networkmanager-openvpn
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: nfs-utils
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: nodejs
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: noto-color-emoji-fontconfig
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: noto-fonts
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: noto-fonts-cjk
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: noto-fonts-emoji
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: npm
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: ntp
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: nwg-look
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: obs-studio
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: obsidian
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: onlyoffice-bin
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: opencl-mesa
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: openssh
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: pacman-contrib
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: pacseek
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: paru
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: pavucontrol
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: pd
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: perl
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: pipewire-alsa
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: pipewire-pulse
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: pkgfile
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: plocate
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: plugdata-bin
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: plymouth
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: poppler-glib
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: power-profiles-daemon
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: proton-vpn-gtk-app
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: pv
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: python
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: python-defusedxml
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: python-lsp-server
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: python-packaging
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: python-pip
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: qemu-full
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: qt6-wayland
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: rebuild-detector
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: reflector
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: ripgrep
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: rofi
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: rofi-calc
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: rsync
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: rtkit
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: rustup
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: satty
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: sg3_utils
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: smartmontools
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: snapper
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: sof-firmware
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: spotify
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: steam
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: stow
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: sudo
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: surge-xt
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: swaync
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: sysfsutils
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: systemd-boot-manager
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: texinfo
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: thunar
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: thunar-archive-plugin
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: thunar-media-tags-plugin
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: thunar-volman
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: tokyonight-gtk-theme-git
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: ttf-bitstream-vera
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: ttf-dejavu
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: ttf-jetbrains-mono-nerd
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: ttf-liberation
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: ttf-meslo-nerd
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: ttf-opensans
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: tumbler
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: ufw
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: unrar
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: unzip
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: upower
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: usb_modeswitch
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: usbutils
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: vde2
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: virt-manager
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: virt-viewer
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: vulkan-radeon
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: waybar
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: waypaper
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: wget
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: which
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: winboat
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: wireless-regdb
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: wireplumber
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: wpa_supplicant
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: wtype
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: xdg-desktop-portal-hyprland
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: xdg-user-dirs
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: xf86-input-libinput
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: xf86-video-amdgpu
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: xfsprogs
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: xorg-server
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: xorg-xdpyinfo
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: xorg-xinit
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: xorg-xinput
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: xorg-xkill
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: xorg-xrandr
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: yabridge
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: yabridgectl
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: yazi
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: zathura
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: zathura-pdf-mupdf
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: zed
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: zen-browser-bin
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: zip
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: zoom
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: zsh
+      type: pkg
+      state: present
+      priority: 0
+      when: ""
+      depends_on: []
+      params: {}
+    - id: ""
+      name: hyprland.conf
+      type: file
+      state: ""
+      priority: 0
+      when: ""
+      depends_on: []
+      params:
+        path: /home/melih/.config/hypr/hyprland.conf
+        state: present
+    - id: ""
+      name: kitty.conf
+      type: file
+      state: ""
+      priority: 0
+      when: ""
+      depends_on: []
+      params:
+        path: /home/melih/.config/kitty/kitty.conf
+        state: present
+    - id: ""
+      name: init.lua
+      type: file
+      state: ""
+      priority: 0
+      when: ""
+      depends_on: []
+      params:
+        path: /home/melih/.config/nvim/init.lua
+        state: present
+    - id: ""
+      name: config.rasi
+      type: file
+      state: ""
+      priority: 0
+      when: ""
+      depends_on: []
+      params:
+        path: /home/melih/.config/rofi/config.rasi
+        state: present
+    - id: ""
+      name: style.css
+      type: file
+      state: ""
+      priority: 0
+      when: ""
+      depends_on: []
+      params:
+        path: /home/melih/.config/waybar/style.css
+        state: present
+    - id: ""
+      name: .gitconfig
+      type: file
+      state: ""
+      priority: 0
+      when: ""
+      depends_on: []
+      params:
+        path: /home/melih/.gitconfig
+        state: present
+    - id: ""
+      name: .zshrc
+      type: file
+      state: ""
+      priority: 0
+      when: ""
+      depends_on: []
+      params:
+        path: /home/melih/.zshrc
+        state: present
+    - id: ""
+      name: ananicy-cpp
+      type: service
+      state: running
+      priority: 0
+      when: ""
+      depends_on: []
+      params:
+        enabled: true
+    - id: ""
+      name: avahi-daemon
+      type: service
+      state: running
+      priority: 0
+      when: ""
+      depends_on: []
+      params:
+        enabled: true
+    - id: ""
+      name: bluetooth
+      type: service
+      state: running
+      priority: 0
+      when: ""
+      depends_on: []
+      params:
+        enabled: true
+    - id: ""
+      name: docker
+      type: service
+      state: running
+      priority: 0
+      when: ""
+      depends_on: []
+      params:
+        enabled: true
+    - id: ""
+      name: getty@
+      type: service
+      state: running
+      priority: 0
+      when: ""
+      depends_on: []
+      params:
+        enabled: true
+    - id: ""
+      name: libvirtd
+      type: service
+      state: running
+      priority: 0
+      when: ""
+      depends_on: []
+      params:
+        enabled: true
+    - id: ""
+      name: limine-snapper-sync
+      type: service
+      state: running
+      priority: 0
+      when: ""
+      depends_on:
+        - pkg:limine-snapper-sync
+      params:
+        enabled: true
+    - id: ""
+      name: NetworkManager-dispatcher
+      type: service
+      state: running
+      priority: 0
+      when: ""
+      depends_on: []
+      params:
+        enabled: true
+    - id: ""
+      name: NetworkManager-wait-online
+      type: service
+      state: running
+      priority: 0
+      when: ""
+      depends_on: []
+      params:
+        enabled: true
+    - id: ""
+      name: NetworkManager
+      type: service
+      state: running
+      priority: 0
+      when: ""
+      depends_on: []
+      params:
+        enabled: true
+    - id: ""
+      name: proton.VPN
+      type: service
+      state: running
+      priority: 0
+      when: ""
+      depends_on: []
+      params:
+        enabled: true
+    - id: ""
+      name: systemd-resolved
+      type: service
+      state: running
+      priority: 0
+      when: ""
+      depends_on: []
+      params:
+        enabled: true
+    - id: ""
+      name: systemd-timesyncd
+      type: service
+      state: running
+      priority: 0
+      when: ""
+      depends_on: []
+      params:
+        enabled: true
+    - id: ""
+      name: ufw
+      type: service
+      state: running
+      priority: 0
+      when: ""
+      depends_on:
+        - pkg:ufw
+      params:
+        enabled: true
+    - id: ""
+      name: wpa_supplicant
+      type: service
+      state: running
+      priority: 0
+      when: ""
+      depends_on:
+        - pkg:wpa_supplicant
+      params:
+        enabled: true
+hosts: []

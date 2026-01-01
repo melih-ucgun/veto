@@ -1,6 +1,6 @@
 os: linux
 kernel: 6.18.2-2-cachyos
-distro: CachyOs
+distro: cachyos
 version: Rolling Release
 init_system: systemd
 hostname: monarch
