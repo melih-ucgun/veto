@@ -6,7 +6,7 @@ import (
 	"github.com/melih-ucgun/veto/internal/core"
 )
 
-func detectInitSystem(ctx *core.SystemContext) string {
+func detectInitSystem(ctx *core.SystemContext, execCmd func(string) (string, error)) string {
 	// 1. Check PID 1 (most reliable)
 	// /proc/1/comm usually contains "systemd" or "init"
 	if comm, err := ctx.FS.ReadFile("/proc/1/comm"); err == nil {
@@ -25,7 +25,7 @@ func detectInitSystem(ctx *core.SystemContext) string {
 	if _, err := ctx.FS.Stat("/run/openrc"); err == nil {
 		return "openrc"
 	}
-	if _, err := ctx.Transport.Execute(ctx.Context, "which rc-service"); err == nil {
+	if _, err := execCmd("which rc-service"); err == nil {
 		return "openrc"
 	}
 

@@ -11,6 +11,7 @@ import (
 	"github.com/melih-ucgun/veto/internal/core"
 	"github.com/melih-ucgun/veto/internal/discovery"
 	"github.com/melih-ucgun/veto/internal/system"
+	"github.com/melih-ucgun/veto/internal/transport"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -39,7 +40,8 @@ func RunImportInteractive(outputFile string, nonInteractive bool) {
 	pterm.DefaultHeader.Println("System Discovery & Import")
 	spinner, _ := pterm.DefaultSpinner.Start("Detecting system context...")
 
-	ctx := core.NewSystemContext(false)
+	// Discovery runs locally
+	ctx := core.NewSystemContext(false, transport.NewLocalTransport())
 	system.Detect(ctx)
 
 	spinner.UpdateText("Discovering packages and services...")

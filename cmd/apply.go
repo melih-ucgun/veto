@@ -13,15 +13,20 @@ import (
 	"github.com/melih-ucgun/veto/internal/adapters/snapshot"
 	"github.com/melih-ucgun/veto/internal/config"
 	"github.com/melih-ucgun/veto/internal/core"
+	"github.com/melih-ucgun/veto/internal/fleet" // New import
 	"github.com/melih-ucgun/veto/internal/hub"
+	"github.com/melih-ucgun/veto/internal/inventory" // New import
 	"github.com/melih-ucgun/veto/internal/resource"
-	"github.com/melih-ucgun/veto/internal/state" // New import
+	"github.com/melih-ucgun/veto/internal/state"
 	"github.com/melih-ucgun/veto/internal/system"
+	"github.com/melih-ucgun/veto/internal/transport"
 )
 
 var dryRun bool
 var noSnapshot bool
 var pruneMode bool
+var inventoryFile string
+var concurrency int
 
 var applyCmd = &cobra.Command{
 	Use:   "apply [config_file]",
@@ -51,7 +56,7 @@ Updates .veto/state.json with the results.`,
 			}
 		}
 
-		if err := runApply(configFile, dryRun, noSnapshot, pruneMode); err != nil {
+		if err := runApply(configFile, inventoryFile, concurrency, dryRun, noSnapshot, pruneMode); err != nil {
 			os.Exit(1)
 		}
 	},
@@ -62,9 +67,11 @@ func init() {
 	applyCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Simulate changes without applying them")
 	applyCmd.Flags().BoolVar(&noSnapshot, "no-snapshot", false, "Disable automatic BTRFS snapshots")
 	applyCmd.Flags().BoolVar(&pruneMode, "prune", false, "Remove unmanaged package resources (DESTRUCTIVE)")
+	applyCmd.Flags().StringVarP(&inventoryFile, "inventory", "i", "", "Path to inventory file")
+	applyCmd.Flags().IntVarP(&concurrency, "concurrency", "C", 5, "Number of concurrent hosts")
 }
 
-func runApply(configFile string, isDryRun bool, skipSnapshot bool, isPrune bool) error {
+func runApply(configFile, invFile string, concurrency int, isDryRun bool, skipSnapshot bool, isPrune bool) error {
 	// Header
 	pterm.DefaultHeader.WithFullWidth().WithBackgroundStyle(pterm.NewStyle(pterm.BgLightBlue)).
 		WithTextStyle(pterm.NewStyle(pterm.FgBlack, pterm.Bold)).
@@ -74,8 +81,9 @@ func runApply(configFile string, isDryRun bool, skipSnapshot bool, isPrune bool)
 		pterm.ThemeDefault.SecondaryStyle.Println("Running in DRY-RUN mode")
 	}
 
-	// 1. Detect System
-	ctx := core.NewSystemContext(isDryRun)
+	// 1. Detect System (Local Context for Info/Snapshots)
+	localTransport := transport.NewLocalTransport()
+	ctx := core.NewSystemContext(isDryRun, localTransport)
 	system.Detect(ctx)
 
 	// 1.5 Load System Profile (if exists)
@@ -145,7 +153,7 @@ func runApply(configFile string, isDryRun bool, skipSnapshot bool, isPrune bool)
 	}
 	spinnerLoad.Success("Configuration loaded")
 
-	// 4. Sort Resources
+	// 4. Sort Resources (Global for both Local and Fleet)
 	spinnerSort, _ := pterm.DefaultSpinner.Start("Resolving dependencies...")
 	sortedResources, err := config.SortResources(cfg.Resources)
 	if err != nil {
@@ -155,21 +163,10 @@ func runApply(configFile string, isDryRun bool, skipSnapshot bool, isPrune bool)
 	spinnerSort.Success(fmt.Sprintf("Resolved %d layers", len(sortedResources)))
 	pterm.Println()
 
-	// 5. Prepare Engine
-	eng := core.NewEngine(ctx, stateMgr)
-
-	// 6. Fire Engine
-	createFn := func(t, n string, p map[string]interface{}, c *core.SystemContext) (core.Resource, error) {
-		return resource.CreateResourceWithParams(t, n, p, c)
-	}
-
-	finalError := error(nil)
-
-	for i, layer := range sortedResources {
-		// Layer Header
-		pterm.DefaultSection.Printf("Phase %d: Processing %d resources", i+1, len(layer))
-
-		// Resources...
+	// 4.1 Convert Config Resources to Core ConfigItems (Layers)
+	// This is needed for both Local (optional refactor) and Fleet (required).
+	var layers [][]core.ConfigItem
+	for _, layer := range sortedResources {
 		var layerItems []core.ConfigItem
 		for _, res := range layer {
 			name := res.Name
@@ -193,13 +190,61 @@ func runApply(configFile string, isDryRun bool, skipSnapshot bool, isPrune bool)
 				State:  state,
 				When:   res.When,
 				Params: res.Params,
+				Hooks: core.Hooks{
+					Pre:      res.Hooks.Pre,
+					Post:     res.Hooks.Post,
+					OnChange: res.Hooks.OnChange,
+					OnFail:   res.Hooks.OnFail,
+				},
 			})
 		}
+		layers = append(layers, layerItems)
+	}
+
+	// 5. Define Resource Creator
+	createFn := func(t, n string, p map[string]interface{}, c *core.SystemContext) (core.Resource, error) {
+		return resource.CreateResourceWithParams(t, n, p, c)
+	}
+
+	// 6. Branch: Fleet vs Local
+	if invFile != "" {
+		// --- FLEET MODE ---
+		pterm.DefaultHeader.WithFullWidth().
+			WithBackgroundStyle(pterm.NewStyle(pterm.BgMagenta)).
+			WithTextStyle(pterm.NewStyle(pterm.FgWhite, pterm.Bold)).
+			Println("FLEET MODE ACTIVATED")
+
+		inv, err := inventory.LoadInventory(invFile)
+		if err != nil {
+			return fmt.Errorf("failed to load inventory: %w", err)
+		}
+
+		fleetMgr := fleet.NewFleetManager(inv.Hosts, isDryRun, isPrune)
+		if err := fleetMgr.ApplyConfig(layers, concurrency, createFn); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// --- LOCAL MODE (Remaining logic) ---
+	// 5. Prepare Engine (For Local)
+	pterm.DefaultHeader.WithFullWidth().
+		WithBackgroundStyle(pterm.NewStyle(pterm.BgBlue)).
+		WithTextStyle(pterm.NewStyle(pterm.FgWhite, pterm.Bold)).
+		Println("LOCAL MODE ACTIVATED")
+
+	eng := core.NewEngine(ctx, stateMgr)
+	finalError := error(nil)
+
+	// Execute Layers
+	for i, layer := range layers {
+		// Layer Header
+		pterm.DefaultSection.Printf("Phase %d: Processing %d resources", i+1, len(layer))
 
 		// Spinner for execution (Simple main spinner)
 		spinnerExec, _ := pterm.DefaultSpinner.Start("Executing layer...")
 
-		if err := eng.RunParallel(layerItems, createFn); err != nil {
+		if err := eng.RunParallel(layer, createFn); err != nil {
 			spinnerExec.Fail(fmt.Sprintf("Layer %d failed", i+1))
 			pterm.Error.Printf("Layer %d completed with errors: %v\n", i+1, err)
 			finalError = err // Keep track of error

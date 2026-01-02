@@ -1,10 +1,26 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
 )
+
+// MockTransport implements core.Transport
+type MockTransport struct {
+	CapturedCmds []string
+}
+
+func (m *MockTransport) Execute(ctx context.Context, cmd string) (string, error) {
+	m.CapturedCmds = append(m.CapturedCmds, cmd)
+	return "ok", nil
+}
+func (m *MockTransport) CopyFile(ctx context.Context, src, dst string) error     { return nil }
+func (m *MockTransport) DownloadFile(ctx context.Context, src, dst string) error { return nil }
+func (m *MockTransport) GetFileSystem() FileSystem                               { return &RealFS{} }
+func (m *MockTransport) GetOS(ctx context.Context) (string, error)               { return "linux", nil }
+func (m *MockTransport) Close() error                                            { return nil }
 
 // MockResource implements Resource and Revertable
 type MockResource struct {
@@ -53,7 +69,7 @@ func (m *MockStateUpdater) UpdateResource(resType, name, targetState, status str
 }
 
 func TestEngine_RunParallel(t *testing.T) {
-	ctx := NewSystemContext(false)
+	ctx := NewSystemContext(false, nil)
 
 	t.Run("All success", func(t *testing.T) {
 		engine := NewEngine(ctx, nil)
@@ -171,6 +187,43 @@ func TestEngine_RunParallel(t *testing.T) {
 		}
 		if !resA.RevertCalled {
 			t.Error("resA (prev layer) not reverted")
+		}
+	})
+
+	t.Run("Hooks execution", func(t *testing.T) {
+		mockTransport := &MockTransport{}
+		ctx := NewSystemContext(false, mockTransport)
+		engine := NewEngine(ctx, nil)
+
+		res := &MockResource{Name: "resHook", ApplyResult: SuccessChange("ok")}
+
+		createFn := func(t, n string, p map[string]interface{}, c *SystemContext) (Resource, error) {
+			return res, nil
+		}
+
+		item := ConfigItem{
+			Name: "resHook",
+			Hooks: Hooks{
+				Pre:      "echo pre",
+				Post:     "echo post",
+				OnChange: "echo change",
+			},
+		}
+
+		err := engine.RunParallel([]ConfigItem{item}, createFn)
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+
+		// Verify executed commands
+		expected := []string{"echo pre", "echo post", "echo change"}
+		if len(mockTransport.CapturedCmds) != 3 {
+			t.Fatalf("Expected 3 hooks, got %d: %v", len(mockTransport.CapturedCmds), mockTransport.CapturedCmds)
+		}
+		for i, exp := range expected {
+			if mockTransport.CapturedCmds[i] != exp {
+				t.Errorf("Hook %d mismatch: want %s, got %s", i, exp, mockTransport.CapturedCmds[i])
+			}
 		}
 	})
 }

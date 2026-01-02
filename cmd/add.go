@@ -10,6 +10,7 @@ import (
 	"github.com/melih-ucgun/veto/internal/core"
 	"github.com/melih-ucgun/veto/internal/hub"
 	"github.com/melih-ucgun/veto/internal/system"
+	"github.com/melih-ucgun/veto/internal/transport"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -42,8 +43,8 @@ var addCmd = &cobra.Command{
 		}
 
 		pterm.Info.Printf("Adding resources to: %s\n", configPath)
-
-		ctx := core.NewSystemContext(false)
+		// Only local context needed for adding user
+		ctx := core.NewSystemContext(false, transport.NewLocalTransport())
 		system.Detect(ctx)
 		addedCount := 0
 

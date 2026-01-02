@@ -9,7 +9,7 @@ import (
 )
 
 func TestCreateResourceWithParams(t *testing.T) {
-	baseCtx := core.NewSystemContext(false)
+	baseCtx := core.NewSystemContext(false, nil)
 
 	tests := []struct {
 		name        string
@@ -106,7 +106,7 @@ func TestCreateResource_ContextAware(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run("Distro="+tt.distro, func(t *testing.T) {
-			ctx := core.NewSystemContext(false)
+			ctx := core.NewSystemContext(false, nil)
 			ctx.Distro = tt.distro
 
 			// Request generic "pkg" resource
@@ -143,7 +143,7 @@ func TestCreateResource_InitSystemAware(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run("Init="+tt.initSystem, func(t *testing.T) {
-			ctx := core.NewSystemContext(false)
+			ctx := core.NewSystemContext(false, nil)
 			ctx.InitSystem = tt.initSystem
 
 			// Request "service" resource

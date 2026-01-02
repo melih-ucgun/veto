@@ -3,6 +3,7 @@ package system
 import (
 	"bufio"
 	"fmt"
+	"os/exec"
 	"strconv"
 	"strings"
 
@@ -11,17 +12,31 @@ import (
 
 // Detect, mevcut sistemi analiz eder ve SystemContext'i doldurur.
 func Detect(ctx *core.SystemContext) {
+	// Helper to execute command
+	execCmd := func(cmdStr string) (string, error) {
+		if ctx.Transport != nil {
+			return ctx.Transport.Execute(ctx.Context, cmdStr)
+		}
+		// Fallback to local execution
+		// Very basic split, might not handle complex quotes, but enough for hostname etc.
+		// Actually RunCommand logic in core deals with sh -c.
+		// We can just run sh -c here too.
+		c := exec.Command("sh", "-c", cmdStr)
+		out, err := c.CombinedOutput()
+		return string(out), err
+	}
+
 	// 1. Temel OS Bilgileri
 	info := readOSRelease(ctx)
 	ctx.OS = "linux"
 	ctx.Distro = info["ID"]
 	ctx.Version = info["VERSION_ID"]
 
-	hostname, _ := ctx.Transport.Execute(ctx.Context, "hostname")
+	hostname, _ := execCmd("hostname")
 	ctx.Hostname = strings.TrimSpace(hostname)
 
-	ctx.InitSystem = detectInitSystem(ctx)
-	ctx.Kernel = detectKernel(ctx)
+	ctx.InitSystem = detectInitSystem(ctx, execCmd)
+	ctx.Kernel = detectKernel(ctx, execCmd)
 
 	// Arch tabanlı veya versiyon bilgisi olmayan sistemler için Rolling Release kontrolü
 	if ctx.Version == "" {
@@ -41,24 +56,24 @@ func Detect(ctx *core.SystemContext) {
 	}
 
 	// 2. Kullanıcı Bilgileri
-	if username, err := ctx.Transport.Execute(ctx.Context, "id -u -n"); err == nil {
+	if username, err := execCmd("id -u -n"); err == nil {
 		ctx.User = strings.TrimSpace(username)
 	}
-	if home, err := ctx.Transport.Execute(ctx.Context, "echo $HOME"); err == nil {
+	if home, err := execCmd("echo $HOME"); err == nil {
 		ctx.HomeDir = strings.TrimSpace(home)
 	}
-	if uid, err := ctx.Transport.Execute(ctx.Context, "id -u"); err == nil {
+	if uid, err := execCmd("id -u"); err == nil {
 		ctx.UID = strings.TrimSpace(uid)
 	}
-	if gid, err := ctx.Transport.Execute(ctx.Context, "id -g"); err == nil {
+	if gid, err := execCmd("id -g"); err == nil {
 		ctx.GID = strings.TrimSpace(gid)
 	}
 
 	// 3. Donanım Tespiti
-	ctx.Hardware = detectHardware(ctx)
+	ctx.Hardware = detectHardware(ctx, execCmd)
 
 	// 4. Çevresel Değişkenler
-	ctx.Env = detectEnv(ctx)
+	ctx.Env = detectEnv(ctx, execCmd)
 
 	// 5. Dosya Sistemi
 	ctx.FSInfo = detectFS(ctx, "/")
@@ -84,7 +99,7 @@ func readOSRelease(ctx *core.SystemContext) map[string]string {
 	return info
 }
 
-func detectHardware(ctx *core.SystemContext) core.SystemHardware {
+func detectHardware(ctx *core.SystemContext, execCmd func(string) (string, error)) core.SystemHardware {
 	hw := core.SystemHardware{
 		CPUModel:  "Unknown CPU",
 		GPUVendor: "Unknown GPU",
@@ -106,7 +121,7 @@ func detectHardware(ctx *core.SystemContext) core.SystemHardware {
 		}
 	}
 
-	if out, err := ctx.Transport.Execute(ctx.Context, "nproc"); err == nil {
+	if out, err := execCmd("nproc"); err == nil {
 		hw.CPUCore, _ = strconv.Atoi(strings.TrimSpace(out))
 	}
 
@@ -132,7 +147,7 @@ func detectHardware(ctx *core.SystemContext) core.SystemHardware {
 	}
 
 	// GPU (lspci check)
-	if out, err := ctx.Transport.Execute(ctx.Context, "lspci"); err == nil {
+	if out, err := execCmd("lspci"); err == nil {
 		output := string(out)
 		lowerOut := strings.ToLower(output)
 		if strings.Contains(lowerOut, "nvidia") {
@@ -166,10 +181,10 @@ func extractGPUModel(lspciOut, vendor string) string {
 	return "Unknown Model"
 }
 
-func detectEnv(ctx *core.SystemContext) core.SystemEnv {
-	shell, _ := ctx.Transport.Execute(ctx.Context, "echo $SHELL")
-	lang, _ := ctx.Transport.Execute(ctx.Context, "echo $LANG")
-	term, _ := ctx.Transport.Execute(ctx.Context, "echo $TERM")
+func detectEnv(ctx *core.SystemContext, execCmd func(string) (string, error)) core.SystemEnv {
+	shell, _ := execCmd("echo $SHELL")
+	lang, _ := execCmd("echo $LANG")
+	term, _ := execCmd("echo $TERM")
 
 	return core.SystemEnv{
 		Shell:    strings.TrimSpace(shell),
@@ -228,8 +243,8 @@ func strLimit(s string, limit int) string {
 	return s
 }
 
-func detectKernel(ctx *core.SystemContext) string {
-	out, err := ctx.Transport.Execute(ctx.Context, "uname -r")
+func detectKernel(ctx *core.SystemContext, execCmd func(string) (string, error)) string {
+	out, err := execCmd("uname -r")
 	if err != nil {
 		return "unknown"
 	}

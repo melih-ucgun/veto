@@ -34,6 +34,15 @@ type ResourceConfig struct {
 	When      string                 `yaml:"when"`     // Conditional execution logic
 	DependsOn []string               `yaml:"depends_on"`
 	Params    map[string]interface{} `yaml:"params"`
+	Hooks     Hooks                  `yaml:"hooks"`
+}
+
+// Hooks defines lifecycle command hooks for a resource.
+type Hooks struct {
+	Pre      string `yaml:"pre"`       // Runs before apply
+	Post     string `yaml:"post"`      // Runs after apply (always)
+	OnChange string `yaml:"on_change"` // Runs only if state changed
+	OnFail   string `yaml:"on_fail"`   // Runs if apply failed
 }
 
 // Host holds connection information for a remote host.
@@ -57,7 +66,8 @@ func LoadConfig(path string) (*Config, error) {
 
 	// 0. Detect System & Set VETO_ VARIABLES for Template Expansion
 	// This happens BEFORE loading config so {{.OS}} works in 'includes'
-	ctx := core.NewSystemContext(false)
+	// Passing nil transport as system.Detect should handle local fallback
+	ctx := core.NewSystemContext(false, nil)
 	system.Detect(ctx) // Lightweight detection
 	os.Setenv("VETO_OS", ctx.OS)
 	os.Setenv("VETO_DISTRO", ctx.Distro)
@@ -260,6 +270,10 @@ func expandMap(m map[string]interface{}) {
 // Security & Decryption
 
 func decryptConfig(cfg *Config) {
+	if !hasEncryptedContent(cfg) {
+		return
+	}
+
 	key := getMasterKey()
 	if key == "" {
 		// No key found. If there are encrypted values, they will remain as is (encrypted).
@@ -287,6 +301,63 @@ func decryptConfig(cfg *Config) {
 			cfg.Hosts[i].BecomePassword = val
 		}
 	}
+}
+
+func hasEncryptedContent(cfg *Config) bool {
+	// 1. Global Vars
+	for _, v := range cfg.Vars {
+		if crypto.IsEncrypted(v) {
+			return true
+		}
+	}
+
+	// 2. Resources
+	for i := range cfg.Resources {
+		if hasEncryptedResource(&cfg.Resources[i]) {
+			return true
+		}
+	}
+
+	// 3. Hosts
+	for _, h := range cfg.Hosts {
+		if crypto.IsEncrypted(h.BecomePassword) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func hasEncryptedResource(res *ResourceConfig) bool {
+	return hasEncryptedMap(res.Params)
+}
+
+func hasEncryptedMap(m map[string]interface{}) bool {
+	for _, v := range m {
+		switch val := v.(type) {
+		case string:
+			if crypto.IsEncrypted(val) {
+				return true
+			}
+		case map[string]interface{}:
+			if hasEncryptedMap(val) {
+				return true
+			}
+		case []interface{}:
+			for _, item := range val {
+				if str, ok := item.(string); ok {
+					if crypto.IsEncrypted(str) {
+						return true
+					}
+				} else if subMap, ok := item.(map[string]interface{}); ok {
+					if hasEncryptedMap(subMap) {
+						return true
+					}
+				}
+			}
+		}
+	}
+	return false
 }
 
 func decryptResource(res *ResourceConfig, key string) {

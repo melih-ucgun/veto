@@ -43,6 +43,12 @@ type SystemContext struct {
 	// Çalışma Modu
 	DryRun bool `yaml:"-"` // Eğer true ise, hiçbir değişiklik yapılmaz, sadece simüle edilir.
 
+	// TargetUser is the user to connect as (for remote operations)
+	TargetUser string `yaml:"target_user,omitempty"`
+
+	// Vars holds arbitrary variables (host vars, facts, etc.)
+	Vars map[string]string `yaml:"vars,omitempty"`
+
 	// Logger veya Output (İleride loglama için)
 	Stdout io.Writer `yaml:"-"`
 	Stderr io.Writer `yaml:"-"`
@@ -67,7 +73,7 @@ type SystemFS struct {
 	RootFSType string `yaml:"root_fs_type"` // "ext4", "btrfs", "zfs"
 }
 
-func NewSystemContext(dryRun bool) *SystemContext {
+func NewSystemContext(dryRun bool, tr Transport) *SystemContext {
 	return &SystemContext{
 		Context:    context.Background(),
 		OS:         "unknown",
@@ -79,7 +85,7 @@ func NewSystemContext(dryRun bool) *SystemContext {
 		Stdout:     os.Stdout,
 		Stderr:     os.Stderr,
 		FS:         &RealFS{}, // Default to local filesystem
-		Transport:  &LocalTransport{},
+		Transport:  tr,
 		// Diğer alt structlar zero-value olarak başlar, detector tarafından doldurulur.
 	}
 }

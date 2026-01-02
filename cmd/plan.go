@@ -8,6 +8,7 @@ import (
 	"github.com/melih-ucgun/veto/internal/core"
 	"github.com/melih-ucgun/veto/internal/resource"
 	"github.com/melih-ucgun/veto/internal/system"
+	"github.com/melih-ucgun/veto/internal/transport"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
@@ -30,7 +31,9 @@ var planCmd = &cobra.Command{
 		// Force DryRun in Context?
 		// Engine.Plan doesn't modify anything, but context might affect templates.
 		// We use standard context.
-		ctx := core.NewSystemContext(false)
+		// Plan works locally to generate plan for local? Or can use inventory?
+		// Existing code assumes local.
+		ctx := core.NewSystemContext(false, transport.NewLocalTransport())
 		system.Detect(ctx)
 		ctx.DryRun = true // explicit
 

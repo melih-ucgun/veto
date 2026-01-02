@@ -22,6 +22,15 @@ type ConfigItem struct {
 	State  string
 	When   string // Condition to evaluate
 	Params map[string]interface{}
+	Hooks  Hooks
+}
+
+// Hooks defines lifecycle hooks for a resource execution.
+type Hooks struct {
+	Pre      string
+	Post     string
+	OnChange string
+	OnFail   string
 }
 
 // Engine is the main structure managing resources.
@@ -214,8 +223,29 @@ func (e *Engine) RunParallel(layer []ConfigItem, createFn ResourceCreator) error
 				return
 			}
 
+			// 1.9 PRE-HOOK
+			if it.Hooks.Pre != "" {
+				if err := executeHook(e.Context, it.Hooks.Pre); err != nil {
+					pterm.Error.Printf("[%s] Pre-Hook Failed: %v. Skipping resource.\n", it.Name, err)
+					errChan <- err
+					return
+				}
+				pterm.Debug.Printf("[%s] Pre-Hook executed\n", it.Name)
+			}
+
 			// 2. Apply resource
 			result, err := res.Apply(e.Context)
+
+			// 2.1 POST-HOOK (Always runs if Apply attempted, unless Pre failed)
+			if it.Hooks.Post != "" {
+				// We log warnings but don't fail the whole resource if Post hook fails?
+				// Plan said: "If ... post ... hooks fail, we log a WARNING, but the main resource status remains"
+				if hookErr := executeHook(e.Context, it.Hooks.Post); hookErr != nil {
+					pterm.Warning.Printf("[%s] Post-Hook Failed: %v\n", it.Name, hookErr)
+				} else {
+					pterm.Debug.Printf("[%s] Post-Hook executed\n", it.Name)
+				}
+			}
 
 			status := "success"
 
@@ -223,9 +253,25 @@ func (e *Engine) RunParallel(layer []ConfigItem, createFn ResourceCreator) error
 				status = "failed"
 				errChan <- err
 				pterm.Error.Printf("[%s] %s: Failed: %v\n", it.Type, it.Name, err)
+
+				// 2.2 ON-FAIL HOOK
+				if it.Hooks.OnFail != "" {
+					if hookErr := executeHook(e.Context, it.Hooks.OnFail); hookErr != nil {
+						pterm.Warning.Printf("[%s] On-Fail Hook Failed: %v\n", it.Name, hookErr)
+					}
+				}
 			} else if result.Changed {
 				// Success
 				pterm.Success.Printf("[%s] %s: %s\n", it.Type, it.Name, result.Message)
+
+				// 2.3 ON-CHANGE HOOK
+				if it.Hooks.OnChange != "" {
+					if hookErr := executeHook(e.Context, it.Hooks.OnChange); hookErr != nil {
+						pterm.Warning.Printf("[%s] On-Change Hook Failed: %v\n", it.Name, hookErr)
+					} else {
+						pterm.Success.Printf("   └── Hook: %s\n", it.Hooks.OnChange)
+					}
+				}
 
 				// Save successful changes (For Rollback)
 				if !e.Context.DryRun {
@@ -633,4 +679,15 @@ func (e *Engine) Prune(configItems []ConfigItem, createFn ResourceCreator) error
 	}
 
 	return nil
+}
+
+// executeHook executes a shell command using the context's transport.
+func executeHook(ctx *SystemContext, cmd string) error {
+	if ctx.DryRun {
+		pterm.Info.Printf("[DryRun] Would execute hook: %s\n", cmd)
+		return nil
+	}
+	// Use Transport to execute
+	_, err := ctx.Transport.Execute(ctx.Context, cmd)
+	return err
 }

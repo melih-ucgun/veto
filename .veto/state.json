@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "last_run": "2026-01-01T14:10:43.082514119+03:00",
+  "last_run": "2026-01-02T23:49:37.446167741+03:00",
   "resources": {
     "download:download-font": {
       "id": "download:download-font",
@@ -36,6 +36,15 @@
       "state": "",
       "last_applied": "2025-12-31T12:54:51.656380131+03:00",
       "status": "failed",
+      "metadata": {}
+    },
+    "file:/tmp/veto_hook_test": {
+      "id": "file:/tmp/veto_hook_test",
+      "name": "/tmp/veto_hook_test",
+      "type": "file",
+      "state": "",
+      "last_applied": "2026-01-02T23:49:37.446165076+03:00",
+      "status": "success",
       "metadata": {}
     },
     "file:dep-file": {

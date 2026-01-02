@@ -8,6 +8,7 @@ import (
 	"github.com/melih-ucgun/veto/internal/core"
 	"github.com/melih-ucgun/veto/internal/state"
 	"github.com/melih-ucgun/veto/internal/system"
+	"github.com/melih-ucgun/veto/internal/transport"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
@@ -89,7 +90,8 @@ func revertChange(change state.TransactionChange) error {
 		// This is tricky without fully initializing the Engine/System context.
 		// Let's quick-detect system.
 		// Let's quick-detect system.
-		ctx := core.NewSystemContext(false)
+		// Rollback runs locally
+		ctx := core.NewSystemContext(false, transport.NewLocalTransport())
 		system.Detect(ctx)
 
 		// We can reuse PkgAdapter but we need to know the type?

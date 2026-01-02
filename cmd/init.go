@@ -8,6 +8,7 @@ import (
 	"atomicgo.dev/cursor"
 	"github.com/melih-ucgun/veto/internal/core"
 	"github.com/melih-ucgun/veto/internal/system"
+	"github.com/melih-ucgun/veto/internal/transport"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -35,7 +36,8 @@ func runInit() {
 		Println("Veto System Initializer")
 
 	spinner, _ := pterm.DefaultSpinner.Start("Scanning system...")
-	detectedCtx := core.NewSystemContext(false)
+	// Init runs locally
+	detectedCtx := core.NewSystemContext(false, transport.NewLocalTransport())
 	system.Detect(detectedCtx)
 	spinner.Success("System scan complete")
 	pterm.Println()
