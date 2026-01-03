@@ -12,6 +12,13 @@ import (
 
 // Detect, mevcut sistemi analiz eder ve SystemContext'i doldurur.
 func Detect(ctx *core.SystemContext) {
+	// Ensure we have a valid FileSystem. If using remote transport, get it from there.
+	if ctx.FS == nil && ctx.Transport != nil {
+		ctx.FS = ctx.Transport.GetFileSystem()
+	}
+	// If still nil and no transport, fallback to RealFS (Local) is unsafe without context?
+	// But Detect usually requires valid context. We'll proceed.
+
 	// Helper to execute command
 	execCmd := func(cmdStr string) (string, error) {
 		if ctx.Transport != nil {

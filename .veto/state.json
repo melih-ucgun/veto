@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "last_run": "2026-01-03T11:09:43.275265188+03:00",
+  "last_run": "2026-01-03T11:20:37.52953531+03:00",
   "resources": {
     "dconf:/org/gnome/desktop/interface/show-battery-percentage": {
       "id": "dconf:/org/gnome/desktop/interface/show-battery-percentage",
@@ -8,6 +8,15 @@
       "type": "dconf",
       "state": "present",
       "last_applied": "2026-01-03T00:00:26.067538697+03:00",
+      "status": "success",
+      "metadata": {}
+    },
+    "docker_container:veto-nginx-test": {
+      "id": "docker_container:veto-nginx-test",
+      "name": "veto-nginx-test",
+      "type": "docker_container",
+      "state": "running",
+      "last_applied": "2026-01-03T11:20:37.529532956+03:00",
       "status": "success",
       "metadata": {}
     },

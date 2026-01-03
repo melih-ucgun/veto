@@ -6,6 +6,7 @@ import (
 	// Register all adapters
 	_ "github.com/melih-ucgun/veto/internal/adapters/bundle"
 	_ "github.com/melih-ucgun/veto/internal/adapters/dconf"
+	_ "github.com/melih-ucgun/veto/internal/adapters/docker"
 	_ "github.com/melih-ucgun/veto/internal/adapters/file"
 	_ "github.com/melih-ucgun/veto/internal/adapters/font"
 	_ "github.com/melih-ucgun/veto/internal/adapters/git"
