@@ -38,7 +38,7 @@ func (r *ZypperAdapter) Validate(ctx *core.SystemContext) error {
 func (r *ZypperAdapter) Check(ctx *core.SystemContext) (bool, error) {
 	// rpm -q genelde en hızlı yoldur ama zypper search -i de olur
 	// rpm -q <package>
-	installed := isInstalled("rpm", "-q", r.Name)
+	installed := isInstalled(ctx, "rpm", "-q", r.Name)
 
 	if r.State == "absent" {
 		return installed, nil
@@ -64,7 +64,7 @@ func (r *ZypperAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 		args = []string{"install", "-n", r.Name}
 	}
 
-	out, err := runCommand("zypper", args...)
+	out, err := runCommand(ctx, "zypper", args...)
 	if err != nil {
 		return core.Failure(err, "Zypper failed: "+out), err
 	}

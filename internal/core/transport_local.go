@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"fmt"
 	"runtime"
 )
 
@@ -19,7 +20,11 @@ func (t *LocalTransport) Close() error {
 func (t *LocalTransport) Execute(ctx context.Context, cmd string) (string, error) {
 	// For local execution, we use the global CommandRunner.
 	// We wrap the command string in a shell to ensure compatibility with remote execution.
-	return RunCommand("sh", "-c", cmd)
+	out, err := RunCommand("sh", "-c", cmd)
+	if err != nil {
+		fmt.Printf("DEBUG: LocalTransport.Execute fail: cmd=[%s] err=[%v] out=[%s]\n", cmd, err, out)
+	}
+	return out, err
 }
 
 func (t *LocalTransport) CopyFile(ctx context.Context, localPath, remotePath string) error {

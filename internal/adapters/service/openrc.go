@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"os/exec"
 	"strings"
 
 	"github.com/melih-ucgun/veto/internal/core"
@@ -18,60 +17,59 @@ func (s *OpenRCManager) Name() string {
 	return "openrc"
 }
 
-func (s *OpenRCManager) IsEnabled(service string) (bool, error) {
+func (s *OpenRCManager) IsEnabled(ctx *core.SystemContext, service string) (bool, error) {
 	// rc-update show default | grep service
 	// This is a bit loose, but standard for OpenRC
-	cmd := exec.Command("rc-update", "show", "default")
-	out, _ := core.CommandRunner.CombinedOutput(cmd)
+	out, _ := ctx.Transport.Execute(ctx.Context, "rc-update show default")
 	return strings.Contains(string(out), service), nil
 }
 
-func (s *OpenRCManager) IsActive(service string) (bool, error) {
-	cmd := exec.Command("rc-service", service, "status")
-	err := core.CommandRunner.Run(cmd)
+func (s *OpenRCManager) IsActive(ctx *core.SystemContext, service string) (bool, error) {
+	_, err := ctx.Transport.Execute(ctx.Context, "rc-service "+service+" status")
 	// rc-service returns 0 if started, non-zero if stopped
 	return err == nil, nil
 }
 
-func (s *OpenRCManager) Enable(service string) error {
-	return s.runUpdate("add", service, "default")
+func (s *OpenRCManager) Enable(ctx *core.SystemContext, service string) error {
+	return s.runUpdate(ctx, "add", service, "default")
 }
 
-func (s *OpenRCManager) Disable(service string) error {
-	return s.runUpdate("del", service, "default")
+func (s *OpenRCManager) Disable(ctx *core.SystemContext, service string) error {
+	return s.runUpdate(ctx, "del", service, "default")
 }
 
-func (s *OpenRCManager) Start(service string) error {
-	return s.runService(service, "start")
+func (s *OpenRCManager) Start(ctx *core.SystemContext, service string) error {
+	return s.runService(ctx, service, "start")
 }
 
-func (s *OpenRCManager) Stop(service string) error {
-	return s.runService(service, "stop")
+func (s *OpenRCManager) Stop(ctx *core.SystemContext, service string) error {
+	return s.runService(ctx, service, "stop")
 }
 
-func (s *OpenRCManager) Restart(service string) error {
-	return s.runService(service, "restart")
+func (s *OpenRCManager) Restart(ctx *core.SystemContext, service string) error {
+	return s.runService(ctx, service, "restart")
 }
 
-func (s *OpenRCManager) Reload(service string) error {
-	return s.runService(service, "reload")
+func (s *OpenRCManager) Reload(ctx *core.SystemContext, service string) error {
+	return s.runService(ctx, service, "reload")
 }
 
-func (s *OpenRCManager) runService(service string, action string) error {
-	cmd := exec.Command("rc-service", service, action)
-	if out, err := core.CommandRunner.CombinedOutput(cmd); err != nil {
-		return fmt.Errorf("rc-service %s %s failed: %s: %w", service, action, string(out), err)
+func (s *OpenRCManager) runService(ctx *core.SystemContext, service string, action string) error {
+	fullCmd := "rc-service " + service + " " + action
+	if out, err := ctx.Transport.Execute(ctx.Context, fullCmd); err != nil {
+		return fmt.Errorf("rc-service %s %s failed: %s: %w", service, action, out, err)
 	}
 	return nil
 }
 
-func (s *OpenRCManager) runUpdate(action, service, runlevel string) error {
-	cmd := exec.Command("rc-update", action, service, runlevel)
-	if out, err := core.CommandRunner.CombinedOutput(cmd); err != nil {
-		return fmt.Errorf("rc-update %s %s %s failed: %s: %w", action, service, runlevel, string(out), err)
+func (s *OpenRCManager) runUpdate(ctx *core.SystemContext, action, service, runlevel string) error {
+	fullCmd := "rc-update " + action + " " + service + " " + runlevel
+	if out, err := ctx.Transport.Execute(ctx.Context, fullCmd); err != nil {
+		return fmt.Errorf("rc-update %s %s %s failed: %s: %w", action, service, runlevel, out, err)
 	}
 	return nil
 }
-func (s *OpenRCManager) ListEnabled() ([]string, error) {
+
+func (s *OpenRCManager) ListEnabled(ctx *core.SystemContext) ([]string, error) {
 	return nil, fmt.Errorf("list enabled services is not supported for OpenRC yet")
 }

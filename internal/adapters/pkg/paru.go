@@ -37,7 +37,7 @@ func (r *ParuAdapter) Validate(ctx *core.SystemContext) error {
 }
 
 func (r *ParuAdapter) Check(ctx *core.SystemContext) (bool, error) {
-	installed := isInstalled("paru", "-Qi", r.Name)
+	installed := isInstalled(ctx, "paru", "-Qi", r.Name)
 	if r.State == "absent" {
 		return installed, nil
 	}
@@ -63,7 +63,7 @@ func (r *ParuAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 		r.ActionPerformed = "installed"
 	}
 
-	out, err := runCommand("paru", args...)
+	out, err := runCommand(ctx, "paru", args...)
 	if err != nil {
 		r.ActionPerformed = ""
 		return core.Failure(err, "Paru failed: "+out), err
@@ -74,7 +74,7 @@ func (r *ParuAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 
 func (r *ParuAdapter) Revert(ctx *core.SystemContext) error {
 	if r.ActionPerformed == "installed" {
-		_, err := runCommand("paru", "-Rns", "--noconfirm", r.Name)
+		_, err := runCommand(ctx, "paru", "-Rns", "--noconfirm", r.Name)
 		return err
 	}
 	return nil

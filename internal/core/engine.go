@@ -701,6 +701,9 @@ func executeHook(ctx *SystemContext, cmd string) error {
 		return nil
 	}
 	// Use Transport to execute
-	_, err := ctx.Transport.Execute(ctx.Context, cmd)
-	return err
+	out, err := ctx.Transport.Execute(ctx.Context, cmd)
+	if err != nil {
+		return fmt.Errorf("command '%s' failed: %w, output: %s", cmd, err, string(out))
+	}
+	return nil
 }

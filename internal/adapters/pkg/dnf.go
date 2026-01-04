@@ -40,7 +40,7 @@ func (r *DnfAdapter) Validate(ctx *core.SystemContext) error {
 }
 
 func (r *DnfAdapter) Check(ctx *core.SystemContext) (bool, error) {
-	installed := isInstalled("rpm", "-q", r.Name)
+	installed := isInstalled(ctx, "rpm", "-q", r.Name)
 	if r.State == "absent" {
 		return installed, nil
 	}
@@ -66,7 +66,7 @@ func (r *DnfAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 		r.ActionPerformed = "installed"
 	}
 
-	out, err := runCommand("dnf", args...)
+	out, err := runCommand(ctx, "dnf", args...)
 	if err != nil {
 		r.ActionPerformed = ""
 		return core.Failure(err, "Dnf failed: "+out), err
@@ -77,10 +77,10 @@ func (r *DnfAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 
 func (r *DnfAdapter) Revert(ctx *core.SystemContext) error {
 	if r.ActionPerformed == "installed" {
-		_, err := runCommand("dnf", "remove", "-y", r.Name)
+		_, err := runCommand(ctx, "dnf", "remove", "-y", r.Name)
 		return err
 	} else if r.ActionPerformed == "removed" {
-		_, err := runCommand("dnf", "install", "-y", r.Name)
+		_, err := runCommand(ctx, "dnf", "install", "-y", r.Name)
 		return err
 	}
 	return nil

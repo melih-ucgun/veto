@@ -2,7 +2,6 @@ package identity
 
 import (
 	"fmt"
-	"os/exec"
 	"strings"
 
 	"github.com/melih-ucgun/veto/internal/core"
@@ -75,8 +74,7 @@ func (r *UserAdapter) Validate(ctx *core.SystemContext) error {
 
 func (r *UserAdapter) Check(ctx *core.SystemContext) (bool, error) {
 	// id -u <user>
-	cmd := exec.Command("id", "-u", r.Name)
-	err := core.CommandRunner.Run(cmd)
+	_, err := ctx.Transport.Execute(ctx.Context, "id -u "+r.Name)
 	exists := (err == nil)
 
 	if r.State == "absent" {
@@ -103,9 +101,9 @@ func (r *UserAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 	}
 
 	if r.State == "absent" {
-		cmd := exec.Command("userdel", "-r", r.Name)
-		if out, err := core.CommandRunner.CombinedOutput(cmd); err != nil {
-			return core.Failure(err, "Failed to delete user: "+string(out)), err
+		fullCmd := "userdel -r " + r.Name
+		if out, err := ctx.Transport.Execute(ctx.Context, fullCmd); err != nil {
+			return core.Failure(err, "Failed to delete user: "+out), err
 		}
 		r.ActionPerformed = "deleted"
 		return core.SuccessChange("User deleted"), nil
@@ -134,9 +132,9 @@ func (r *UserAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 
 	args = append(args, r.Name)
 
-	cmd := exec.Command("useradd", args...)
-	if out, err := core.CommandRunner.CombinedOutput(cmd); err != nil {
-		return core.Failure(err, "Failed to create user: "+string(out)), err
+	fullCmd := "useradd " + strings.Join(args, " ")
+	if out, err := ctx.Transport.Execute(ctx.Context, fullCmd); err != nil {
+		return core.Failure(err, "Failed to create user: "+out), err
 	}
 	r.ActionPerformed = "created"
 
@@ -146,8 +144,8 @@ func (r *UserAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 func (r *UserAdapter) Revert(ctx *core.SystemContext) error {
 	if r.ActionPerformed == "created" {
 		// Oluşturulan kullanıcıyı sil
-		cmd := exec.Command("userdel", "-r", r.Name)
-		if out, err := core.CommandRunner.CombinedOutput(cmd); err != nil {
+		fullCmd := "userdel -r " + r.Name
+		if out, err := ctx.Transport.Execute(ctx.Context, fullCmd); err != nil {
 			return fmt.Errorf("failed to revert user creation: %s: %w", out, err)
 		}
 	}

@@ -119,8 +119,8 @@ func (r *TemplateAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 	}
 
 	// YEDEKLEME
-	if core.GlobalBackup != nil {
-		backupPath, err := core.GlobalBackup.BackupFile(r.Dest)
+	if ctx.BackupManager != nil && ctx.TxID != "" {
+		backupPath, err := ctx.BackupManager.CreateBackup(ctx.TxID, r.Dest)
 		if err == nil {
 			r.BackupPath = backupPath
 		}

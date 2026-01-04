@@ -2,6 +2,7 @@ package transport
 
 import (
 	"context"
+	"fmt"
 	"runtime"
 
 	"github.com/melih-ucgun/veto/internal/core"
@@ -21,7 +22,11 @@ func (t *LocalTransport) Close() error {
 func (t *LocalTransport) Execute(ctx context.Context, cmd string) (string, error) {
 	// For local execution, we use the global CommandRunner.
 	// We wrap the command string in a shell to ensure compatibility with remote execution.
-	return core.RunCommand("sh", "-c", cmd)
+	out, err := core.RunCommand("sh", "-c", cmd)
+	if err != nil {
+		fmt.Printf("DEBUG(transport): Execute fail: cmd=[%s] err=[%v] out=[%s]\n", cmd, err, out)
+	}
+	return out, err
 }
 
 func (t *LocalTransport) CopyFile(ctx context.Context, localPath, remotePath string) error {

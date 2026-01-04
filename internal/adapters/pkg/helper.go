@@ -2,7 +2,7 @@ package pkg
 
 import (
 	"fmt"
-	"os/exec"
+	"strings"
 
 	"github.com/melih-ucgun/veto/internal/core"
 )
@@ -14,6 +14,11 @@ func init() {
 
 // DetectPackageManager detects and returns the appropriate package manager adapter.
 func DetectPackageManager(name string, params map[string]interface{}, ctx *core.SystemContext) (core.Resource, error) {
+	pkgName, _ := params["name"].(string)
+	if pkgName == "" {
+		pkgName = name
+	}
+
 	state, _ := params["state"].(string)
 	if state == "" {
 		state = "present"
@@ -21,25 +26,25 @@ func DetectPackageManager(name string, params map[string]interface{}, ctx *core.
 
 	switch ctx.Distro {
 	case "arch", "cachyos", "manjaro", "endeavouros":
-		return NewPacmanAdapter(name, params), nil
+		return NewPacmanAdapter(pkgName, params), nil
 	case "ubuntu", "debian", "pop", "mint", "kali":
-		return NewAptAdapter(name, params), nil
+		return NewAptAdapter(pkgName, params), nil
 	case "fedora", "rhel", "centos", "almalinux":
-		return NewDnfAdapter(name, params), nil
+		return NewDnfAdapter(pkgName, params), nil
 	case "alpine":
-		return NewApkAdapter(name, params), nil
+		return NewApkAdapter(pkgName, params), nil
 	case "opensuse", "sles":
-		return NewZypperAdapter(name, params), nil
+		return NewZypperAdapter(pkgName, params), nil
 	case "darwin":
-		return NewBrewAdapter(name, params), nil
+		return NewBrewAdapter(pkgName, params), nil
 	default:
 		// Fallback to searching available commands
 		if core.IsCommandAvailable("pacman") {
-			return NewPacmanAdapter(name, params), nil
+			return NewPacmanAdapter(pkgName, params), nil
 		} else if core.IsCommandAvailable("apt-get") {
-			return NewAptAdapter(name, params), nil
+			return NewAptAdapter(pkgName, params), nil
 		} else if core.IsCommandAvailable("dnf") {
-			return NewDnfAdapter(name, params), nil
+			return NewDnfAdapter(pkgName, params), nil
 		}
 
 		return nil, fmt.Errorf("automatic package manager detection failed for distro: %s", ctx.Distro)
@@ -48,17 +53,21 @@ func DetectPackageManager(name string, params map[string]interface{}, ctx *core.
 
 // isInstalled, verilen komutun başarıyla çalışıp çalışmadığını kontrol eder.
 // Paket yöneticileri genellikle paket varsa 0, yoksa hata kodu döner.
-func isInstalled(checkCmd string, args ...string) bool {
-	cmd := exec.Command(checkCmd, args...)
-	if err := core.CommandRunner.Run(cmd); err != nil {
-		return false
+func isInstalled(ctx *core.SystemContext, checkCmd string, args ...string) bool {
+	fullCmd := checkCmd
+	if len(args) > 0 {
+		fullCmd += " " + strings.Join(args, " ")
 	}
-	return true
+
+	_, err := ctx.Transport.Execute(ctx.Context, fullCmd)
+	return err == nil
 }
 
 // runCommand, bir komutu çalıştırır ve çıktısını/hatasını döner.
-func runCommand(name string, args ...string) (string, error) {
-	cmd := exec.Command(name, args...)
-	out, err := core.CommandRunner.CombinedOutput(cmd)
-	return string(out), err
+func runCommand(ctx *core.SystemContext, name string, args ...string) (string, error) {
+	fullCmd := name
+	if len(args) > 0 {
+		fullCmd += " " + strings.Join(args, " ")
+	}
+	return ctx.Transport.Execute(ctx.Context, fullCmd)
 }

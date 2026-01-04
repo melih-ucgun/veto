@@ -2,7 +2,6 @@ package identity
 
 import (
 	"fmt"
-	"os/exec"
 	"strconv"
 	"strings"
 
@@ -58,8 +57,7 @@ func (r *GroupAdapter) Validate(ctx *core.SystemContext) error {
 
 func (r *GroupAdapter) Check(ctx *core.SystemContext) (bool, error) {
 	// getent group <name>
-	cmd := exec.Command("getent", "group", r.Name)
-	err := core.CommandRunner.Run(cmd)
+	_, err := ctx.Transport.Execute(ctx.Context, "getent group "+r.Name)
 	exists := (err == nil)
 
 	if r.State == "absent" {
@@ -73,9 +71,8 @@ func (r *GroupAdapter) Check(ctx *core.SystemContext) (bool, error) {
 	// Grup var, GID kontrolü (opsiyonel)
 	if r.Gid != -1 {
 		// getent çıktısını parse et: root:x:0:
-		cmdOut := exec.Command("getent", "group", r.Name)
-		out, _ := core.CommandRunner.CombinedOutput(cmdOut)
-		parts := strings.Split(strings.TrimSpace(string(out)), ":")
+		out, _ := ctx.Transport.Execute(ctx.Context, "getent group "+r.Name)
+		parts := strings.Split(strings.TrimSpace(out), ":")
 		if len(parts) >= 3 {
 			currentGid, _ := strconv.Atoi(parts[2])
 			if currentGid != r.Gid {
@@ -98,9 +95,9 @@ func (r *GroupAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 	}
 
 	if r.State == "absent" {
-		cmd := exec.Command("groupdel", r.Name)
-		if out, err := core.CommandRunner.CombinedOutput(cmd); err != nil {
-			return core.Failure(err, "Failed to delete group: "+string(out)), err
+		fullCmd := "groupdel " + r.Name
+		if out, err := ctx.Transport.Execute(ctx.Context, fullCmd); err != nil {
+			return core.Failure(err, "Failed to delete group: "+out), err
 		}
 		r.ActionPerformed = "deleted"
 		return core.SuccessChange("Group deleted"), nil
@@ -110,8 +107,7 @@ func (r *GroupAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 	// Basitlik adına sadece oluşturmayı ele alalım, modifikasyon için groupmod kullanılabilir.
 	// Eğer grup zaten varsa ama GID yanlışsa, groupmod çalıştırılmalı.
 
-	cmdCheck := exec.Command("getent", "group", r.Name)
-	if err := core.CommandRunner.Run(cmdCheck); err == nil {
+	if _, err := ctx.Transport.Execute(ctx.Context, "getent group "+r.Name); err == nil {
 		// Grup var, güncelle (groupmod)
 		args := []string{}
 		if r.Gid != -1 {
@@ -120,9 +116,9 @@ func (r *GroupAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 		args = append(args, r.Name)
 
 		if len(args) > 1 { // Sadece isim değil, argüman da varsa
-			cmdMod := exec.Command("groupmod", args...)
-			if out, err := core.CommandRunner.CombinedOutput(cmdMod); err != nil {
-				return core.Failure(err, "Failed to modify group: "+string(out)), err
+			fullCmd := "groupmod " + strings.Join(args, " ")
+			if out, err := ctx.Transport.Execute(ctx.Context, fullCmd); err != nil {
+				return core.Failure(err, "Failed to modify group: "+out), err
 			}
 			r.ActionPerformed = "modified"
 			return core.SuccessChange("Group modified"), nil
@@ -140,9 +136,9 @@ func (r *GroupAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 	}
 	args = append(args, r.Name)
 
-	cmdAdd := exec.Command("groupadd", args...)
-	if out, err := core.CommandRunner.CombinedOutput(cmdAdd); err != nil {
-		return core.Failure(err, "Failed to create group: "+string(out)), err
+	fullCmd := "groupadd " + strings.Join(args, " ")
+	if out, err := ctx.Transport.Execute(ctx.Context, fullCmd); err != nil {
+		return core.Failure(err, "Failed to create group: "+out), err
 	}
 	r.ActionPerformed = "created"
 
@@ -151,8 +147,8 @@ func (r *GroupAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 
 func (r *GroupAdapter) Revert(ctx *core.SystemContext) error {
 	if r.ActionPerformed == "created" {
-		cmd := exec.Command("groupdel", r.Name)
-		if out, err := core.CommandRunner.CombinedOutput(cmd); err != nil {
+		fullCmd := "groupdel " + r.Name
+		if out, err := ctx.Transport.Execute(ctx.Context, fullCmd); err != nil {
 			return fmt.Errorf("failed to revert group creation: %s: %w", out, err)
 		}
 	}

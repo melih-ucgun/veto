@@ -37,7 +37,7 @@ func (r *ApkAdapter) Validate(ctx *core.SystemContext) error {
 
 func (r *ApkAdapter) Check(ctx *core.SystemContext) (bool, error) {
 	// apk info -e <package> : Paket kuruluysa 0 döner
-	installed := isInstalled("apk", "info", "-e", r.Name)
+	installed := isInstalled(ctx, "apk", "info", "-e", r.Name)
 
 	if r.State == "absent" {
 		return installed, nil
@@ -62,7 +62,7 @@ func (r *ApkAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 		args = []string{"add", r.Name}
 	}
 
-	out, err := runCommand("apk", args...)
+	out, err := runCommand(ctx, "apk", args...)
 	if err != nil {
 		return core.Failure(err, "Apk failed: "+out), err
 	}
@@ -92,7 +92,7 @@ func (r *ApkAdapter) Revert(ctx *core.SystemContext) error {
 		return nil
 	}
 
-	out, err := runCommand("apk", args...)
+	out, err := runCommand(ctx, "apk", args...)
 	if err != nil {
 		return fmt.Errorf("revert apk failed: %s: %w", out, err)
 	}

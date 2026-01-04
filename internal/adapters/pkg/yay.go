@@ -36,7 +36,7 @@ func (r *YayAdapter) Validate(ctx *core.SystemContext) error {
 }
 
 func (r *YayAdapter) Check(ctx *core.SystemContext) (bool, error) {
-	installed := isInstalled("yay", "-Qi", r.Name)
+	installed := isInstalled(ctx, "yay", "-Qi", r.Name)
 	if r.State == "absent" {
 		return installed, nil
 	}
@@ -60,7 +60,7 @@ func (r *YayAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 		args = []string{"-S", "--noconfirm", "--needed", r.Name}
 	}
 
-	out, err := runCommand("yay", args...)
+	out, err := runCommand(ctx, "yay", args...)
 	if err != nil {
 		return core.Failure(err, "Yay failed: "+out), err
 	}

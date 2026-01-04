@@ -38,7 +38,7 @@ func (r *FlatpakAdapter) Validate(ctx *core.SystemContext) error {
 
 func (r *FlatpakAdapter) Check(ctx *core.SystemContext) (bool, error) {
 	// flatpak info <package>
-	installed := isInstalled("flatpak", "info", r.Name)
+	installed := isInstalled(ctx, "flatpak", "info", r.Name)
 
 	if r.State == "absent" {
 		return installed, nil
@@ -66,7 +66,7 @@ func (r *FlatpakAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 		r.ActionPerformed = "installed"
 	}
 
-	out, err := runCommand("flatpak", args...)
+	out, err := runCommand(ctx, "flatpak", args...)
 	if err != nil {
 		r.ActionPerformed = ""
 		return core.Failure(err, "Flatpak failed: "+out), err
@@ -77,7 +77,7 @@ func (r *FlatpakAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 
 func (r *FlatpakAdapter) Revert(ctx *core.SystemContext) error {
 	if r.ActionPerformed == "installed" {
-		_, err := runCommand("flatpak", "uninstall", "-y", r.Name)
+		_, err := runCommand(ctx, "flatpak", "uninstall", "-y", r.Name)
 		return err
 	}
 	return nil

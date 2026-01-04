@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"os/exec"
 	"strings"
 
 	"github.com/melih-ucgun/veto/internal/core"
@@ -18,56 +17,54 @@ func (s *SystemdManager) Name() string {
 	return "systemd"
 }
 
-func (s *SystemdManager) IsEnabled(service string) (bool, error) {
-	cmd := exec.Command("systemctl", "is-enabled", service)
-	out, _ := core.CommandRunner.CombinedOutput(cmd) // Error is expected if disabled
+func (s *SystemdManager) IsEnabled(ctx *core.SystemContext, service string) (bool, error) {
+	out, _ := ctx.Transport.Execute(ctx.Context, "systemctl is-enabled "+service) // Error is expected if disabled
 	status := strings.TrimSpace(string(out))
 	return status == "enabled", nil
 }
 
-func (s *SystemdManager) IsActive(service string) (bool, error) {
-	cmd := exec.Command("systemctl", "is-active", service)
-	out, _ := core.CommandRunner.CombinedOutput(cmd) // Error is expected if inactive
+func (s *SystemdManager) IsActive(ctx *core.SystemContext, service string) (bool, error) {
+	out, _ := ctx.Transport.Execute(ctx.Context, "systemctl is-active "+service) // Error is expected if inactive
 	status := strings.TrimSpace(string(out))
 	return status == "active", nil
 }
 
-func (s *SystemdManager) Enable(service string) error {
-	return s.run("enable", "--now", service)
+func (s *SystemdManager) Enable(ctx *core.SystemContext, service string) error {
+	return s.run(ctx, "enable", "--now", service)
 }
 
-func (s *SystemdManager) Disable(service string) error {
-	return s.run("disable", "--now", service)
+func (s *SystemdManager) Disable(ctx *core.SystemContext, service string) error {
+	return s.run(ctx, "disable", "--now", service)
 }
 
-func (s *SystemdManager) Start(service string) error {
-	return s.run("start", service)
+func (s *SystemdManager) Start(ctx *core.SystemContext, service string) error {
+	return s.run(ctx, "start", service)
 }
 
-func (s *SystemdManager) Stop(service string) error {
-	return s.run("stop", service)
+func (s *SystemdManager) Stop(ctx *core.SystemContext, service string) error {
+	return s.run(ctx, "stop", service)
 }
 
-func (s *SystemdManager) Restart(service string) error {
-	return s.run("restart", service)
+func (s *SystemdManager) Restart(ctx *core.SystemContext, service string) error {
+	return s.run(ctx, "restart", service)
 }
 
-func (s *SystemdManager) Reload(service string) error {
-	return s.run("reload", service)
+func (s *SystemdManager) Reload(ctx *core.SystemContext, service string) error {
+	return s.run(ctx, "reload", service)
 }
 
-func (s *SystemdManager) run(args ...string) error {
-	cmd := exec.Command("systemctl", args...)
-	if out, err := core.CommandRunner.CombinedOutput(cmd); err != nil {
-		return fmt.Errorf("systemctl %s failed: %s: %w", strings.Join(args, " "), string(out), err)
+func (s *SystemdManager) run(ctx *core.SystemContext, args ...string) error {
+	fullCmd := "systemctl " + strings.Join(args, " ")
+	if out, err := ctx.Transport.Execute(ctx.Context, fullCmd); err != nil {
+		return fmt.Errorf("systemctl %s failed: %s: %w", strings.Join(args, " "), out, err)
 	}
 	return nil
 }
 
-func (s *SystemdManager) ListEnabled() ([]string, error) {
+func (s *SystemdManager) ListEnabled(ctx *core.SystemContext) ([]string, error) {
 	// systemctl list-unit-files --state=enabled --type=service --no-legend --no-pager
-	cmd := exec.Command("systemctl", "list-unit-files", "--state=enabled", "--type=service", "--no-legend", "--no-pager")
-	out, err := core.CommandRunner.Output(cmd)
+	fullCmd := "systemctl list-unit-files --state=enabled --type=service --no-legend --no-pager"
+	out, err := ctx.Transport.Execute(ctx.Context, fullCmd)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list enabled services: %w", err)
 	}

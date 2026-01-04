@@ -37,7 +37,7 @@ func (r *SnapAdapter) Validate(ctx *core.SystemContext) error {
 
 func (r *SnapAdapter) Check(ctx *core.SystemContext) (bool, error) {
 	// snap list <package>
-	installed := isInstalled("snap", "list", r.Name)
+	installed := isInstalled(ctx, "snap", "list", r.Name)
 
 	if r.State == "absent" {
 		return installed, nil
@@ -62,7 +62,7 @@ func (r *SnapAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 		args = []string{"install", r.Name}
 	}
 
-	out, err := runCommand("snap", args...)
+	out, err := runCommand(ctx, "snap", args...)
 	if err != nil {
 		return core.Failure(err, "Snap failed: "+out), err
 	}

@@ -1,21 +1,25 @@
 package service
 
+import (
+	"github.com/melih-ucgun/veto/internal/core"
+)
+
 // ServiceManager, init sistemleri (systemd, openrc, vb.) için ortak arayüzdür.
 type ServiceManager interface {
 	Name() string // systemd, openrc
 
 	// State Checks
-	IsEnabled(service string) (bool, error)
-	IsActive(service string) (bool, error)
+	IsEnabled(ctx *core.SystemContext, service string) (bool, error)
+	IsActive(ctx *core.SystemContext, service string) (bool, error)
 
 	// Actions
-	Enable(service string) error
-	Disable(service string) error
-	Start(service string) error
-	Stop(service string) error
-	Restart(service string) error
-	Reload(service string) error
+	Enable(ctx *core.SystemContext, service string) error
+	Disable(ctx *core.SystemContext, service string) error
+	Start(ctx *core.SystemContext, service string) error
+	Stop(ctx *core.SystemContext, service string) error
+	Restart(ctx *core.SystemContext, service string) error
+	Reload(ctx *core.SystemContext, service string) error
 
 	// Discovery
-	ListEnabled() ([]string, error)
+	ListEnabled(ctx *core.SystemContext) ([]string, error)
 }

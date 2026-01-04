@@ -17,12 +17,13 @@ import (
 
 // Config represents the root structure of veto.yaml.
 type Config struct {
-	Vars      map[string]string `yaml:"vars"`      // Global variables
-	Includes  []string          `yaml:"includes"`  // Other config files to include
-	Imports   []string          `yaml:"imports"`   // Alias for includes
-	RuleSets  []string          `yaml:"rulesets"`  // RuleSet paths to include
-	Resources []ResourceConfig  `yaml:"resources"` // Resource list
-	Hosts     []Host            `yaml:"hosts"`     // Remote hosts (Optional)
+	Vars      map[string]string `yaml:"vars,omitempty"`      // Global variables
+	Variables map[string]string `yaml:"variables,omitempty"` // Global variables alias
+	Includes  []string          `yaml:"includes,omitempty"`  // Other config files to include
+	Imports   []string          `yaml:"imports,omitempty"`   // Alias for includes
+	RuleSets  []string          `yaml:"rulesets,omitempty"`  // RuleSet paths to include
+	Resources []ResourceConfig  `yaml:"resources"`           // Resource list
+	Hosts     []Host            `yaml:"hosts,omitempty"`     // Remote hosts (Optional)
 }
 
 // ResourceConfig holds the configuration for each resource (file, user, package, etc.).
@@ -126,6 +127,16 @@ func loadConfigRecursive(path string, visited map[string]bool) (*Config, error) 
 	}
 
 	blockCfg := &cfg
+
+	// Merge Variables into Vars
+	if blockCfg.Variables != nil {
+		if blockCfg.Vars == nil {
+			blockCfg.Vars = make(map[string]string)
+		}
+		for k, v := range blockCfg.Variables {
+			blockCfg.Vars[k] = v
+		}
+	}
 
 	// Merge Imports into Includes
 	blockCfg.Includes = append(blockCfg.Includes, blockCfg.Imports...)

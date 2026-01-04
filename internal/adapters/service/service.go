@@ -53,7 +53,7 @@ func (r *ServiceAdapter) Validate(ctx *core.SystemContext) error {
 
 func (r *ServiceAdapter) Check(ctx *core.SystemContext) (bool, error) {
 	// 1. Enable Check
-	isEnabled, err := r.Manager.IsEnabled(r.Name)
+	isEnabled, err := r.Manager.IsEnabled(ctx, r.Name)
 	if err != nil {
 		return false, err
 	}
@@ -62,7 +62,7 @@ func (r *ServiceAdapter) Check(ctx *core.SystemContext) (bool, error) {
 	}
 
 	// 2. Active Check
-	isActive, err := r.Manager.IsActive(r.Name)
+	isActive, err := r.Manager.IsActive(ctx, r.Name)
 	if err != nil {
 		return false, err
 	}
@@ -104,16 +104,16 @@ func (r *ServiceAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 	// Check method already verified current != desired. but Apply might run without Check returning specifics.
 	// But let's just do it. Idempotency is handled by systemd mostly.
 
-	currentEnabled, _ := r.Manager.IsEnabled(r.Name)
+	currentEnabled, _ := r.Manager.IsEnabled(ctx, r.Name)
 	if currentEnabled != r.Enabled {
 		if r.Enabled {
-			if err := r.Manager.Enable(r.Name); err != nil {
+			if err := r.Manager.Enable(ctx, r.Name); err != nil {
 				return core.Failure(err, "Failed to enable service"), err
 			}
 			r.ActionPerformed = append(r.ActionPerformed, "enabled")
 			messages = append(messages, "Service enabled")
 		} else {
-			if err := r.Manager.Disable(r.Name); err != nil {
+			if err := r.Manager.Disable(ctx, r.Name); err != nil {
 				return core.Failure(err, "Failed to disable service"), err
 			}
 			r.ActionPerformed = append(r.ActionPerformed, "disabled")
@@ -122,11 +122,11 @@ func (r *ServiceAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 	}
 
 	// 2. State Change
-	currentActive, _ := r.Manager.IsActive(r.Name)
+	currentActive, _ := r.Manager.IsActive(ctx, r.Name)
 
 	if r.State == "active" || r.State == "started" {
 		if !currentActive {
-			if err := r.Manager.Start(r.Name); err != nil {
+			if err := r.Manager.Start(ctx, r.Name); err != nil {
 				return core.Failure(err, "Failed to start service"), err
 			}
 			r.ActionPerformed = append(r.ActionPerformed, "started")
@@ -134,14 +134,14 @@ func (r *ServiceAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 		}
 	} else if r.State == "stopped" {
 		if currentActive {
-			if err := r.Manager.Stop(r.Name); err != nil {
+			if err := r.Manager.Stop(ctx, r.Name); err != nil {
 				return core.Failure(err, "Failed to stop service"), err
 			}
 			r.ActionPerformed = append(r.ActionPerformed, "stopped")
 			messages = append(messages, "Service stopped")
 		}
 	} else if r.State == "restarted" {
-		if err := r.Manager.Restart(r.Name); err != nil {
+		if err := r.Manager.Restart(ctx, r.Name); err != nil {
 			return core.Failure(err, "Failed to restart service"), err
 		}
 		r.ActionPerformed = append(r.ActionPerformed, "restarted")
@@ -158,19 +158,19 @@ func (r *ServiceAdapter) Revert(ctx *core.SystemContext) error {
 		switch action {
 		case "started":
 			// Stop it
-			r.Manager.Stop(r.Name)
+			r.Manager.Stop(ctx, r.Name)
 		case "stopped":
 			// Start it (might be risky if it was broken before, but revert means undo)
-			r.Manager.Start(r.Name)
+			r.Manager.Start(ctx, r.Name)
 		case "restarted":
 			// Can't really "un-restart". Maybe restart again? Or ignore.
 			// Ignoring is safer.
 		case "enabled":
 			// Disable it
-			r.Manager.Disable(r.Name)
+			r.Manager.Disable(ctx, r.Name)
 		case "disabled":
 			// Enable it
-			r.Manager.Enable(r.Name)
+			r.Manager.Enable(ctx, r.Name)
 		}
 	}
 	return nil
@@ -179,7 +179,7 @@ func (r *ServiceAdapter) Revert(ctx *core.SystemContext) error {
 // ListInstalled satisfies the core.Lister interface for Prune operations.
 // It returns a list of enabled services.
 func (r *ServiceAdapter) ListInstalled(ctx *core.SystemContext) ([]string, error) {
-	services, err := r.Manager.ListEnabled()
+	services, err := r.Manager.ListEnabled(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list enabled services: %w", err)
 	}

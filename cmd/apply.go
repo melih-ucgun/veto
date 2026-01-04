@@ -102,12 +102,12 @@ func runApply(configFile, invFile string, concurrency int, isDryRun bool, skipSn
 	// Check if we should attempt a snapshot
 	if !isDryRun && !skipSnapshot {
 		// NewManager akıllıca seçim yapar (Snapper > Timeshift)
-		snapMgr = snapshot.NewManager(ctx.FSInfo.RootFSType)
+		snapMgr = snapshot.NewManager(ctx)
 
-		if snapMgr != nil && snapMgr.IsAvailable() {
+		if snapMgr != nil && snapMgr.IsAvailable(ctx) {
 			pterm.Info.Printf("Snapshot System: %s detected\n", snapMgr.ProviderName())
 
-			id, err := snapMgr.CreatePreSnapshot(fmt.Sprintf("Pre-Veto Apply: %s", configFile))
+			id, err := snapMgr.CreatePreSnapshot(ctx, fmt.Sprintf("Pre-Veto Apply: %s", configFile))
 			if err != nil {
 				pterm.Warning.Printf("Snapshot failed: %v (continuing anyway)\n", err)
 			} else {
@@ -153,6 +153,7 @@ func runApply(configFile, invFile string, concurrency int, isDryRun bool, skipSn
 		return err
 	}
 	spinnerLoad.Success("Configuration loaded")
+	ctx.Vars = cfg.Vars
 
 	// 4. Sort Resources (Global for both Local and Fleet)
 	spinnerSort, _ := pterm.DefaultSpinner.Start("Resolving dependencies...")
@@ -262,7 +263,7 @@ func runApply(configFile, invFile string, concurrency int, isDryRun bool, skipSn
 		}
 
 		// Manager arka tarafta Timeshift ise post-snapshot'ı atlayabilir
-		if err := snapMgr.CreatePostSnapshot(preSnapID, desc); err != nil {
+		if err := snapMgr.CreatePostSnapshot(ctx, preSnapID, desc); err != nil {
 			pterm.Warning.Printf("Post-snapshot failed: %v\n", err)
 		}
 	}

@@ -1,42 +1,34 @@
 package pkg
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"os/exec"
 	"strings"
 	"testing"
 
 	"github.com/melih-ucgun/veto/internal/core"
 )
 
-// MockRunner is a mock implementation of core.Runner interface.
-type MockRunner struct {
-	RunFunc            func(cmd *exec.Cmd) error
-	CombinedOutputFunc func(cmd *exec.Cmd) ([]byte, error)
-	OutputFunc         func(cmd *exec.Cmd) ([]byte, error)
+// MockTransport is a mock implementation of core.Transport interface.
+type MockTransport struct {
+	ExecuteFunc func(ctx context.Context, cmd string) (string, error)
 }
 
-func (m *MockRunner) Run(cmd *exec.Cmd) error {
-	if m.RunFunc != nil {
-		return m.RunFunc(cmd)
+func (m *MockTransport) Execute(ctx context.Context, cmd string) (string, error) {
+	if m.ExecuteFunc != nil {
+		return m.ExecuteFunc(ctx, cmd)
 	}
+	return "", nil
+}
+
+func (m *MockTransport) CopyFile(ctx context.Context, localPath, remotePath string) error { return nil }
+func (m *MockTransport) DownloadFile(ctx context.Context, remotePath, localPath string) error {
 	return nil
 }
-
-func (m *MockRunner) CombinedOutput(cmd *exec.Cmd) ([]byte, error) {
-	if m.CombinedOutputFunc != nil {
-		return m.CombinedOutputFunc(cmd)
-	}
-	return []byte{}, nil
-}
-
-func (m *MockRunner) Output(cmd *exec.Cmd) ([]byte, error) {
-	if m.OutputFunc != nil {
-		return m.OutputFunc(cmd)
-	}
-	return []byte{}, nil
-}
+func (m *MockTransport) GetFileSystem() core.FileSystem            { return &core.RealFS{} }
+func (m *MockTransport) GetOS(ctx context.Context) (string, error) { return "linux", nil }
+func (m *MockTransport) Close() error                              { return nil }
 
 func TestPacmanAdapter_Check(t *testing.T) {
 	// Restore original runner after tests
@@ -82,22 +74,18 @@ func TestPacmanAdapter_Check(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup Mock
-			core.CommandRunner = &MockRunner{
-				RunFunc: func(cmd *exec.Cmd) error {
+			mockTr := &MockTransport{
+				ExecuteFunc: func(ctx context.Context, cmd string) (string, error) {
 					// Verify command is checking package existence
-					if len(cmd.Args) < 1 || cmd.Args[0] != "pacman" {
-						return fmt.Errorf("unexpected command: %v", cmd.Args)
+					if !strings.HasPrefix(cmd, "pacman -Qi") {
+						return "", fmt.Errorf("unexpected command: %s", cmd)
 					}
-					// Only check -Qi if it's a check command
-					if len(cmd.Args) >= 2 && cmd.Args[1] == "-Qi" {
-						return tt.mockRunErr
-					}
-					return fmt.Errorf("unexpected args: %v", cmd.Args)
+					return "installed", tt.mockRunErr
 				},
 			}
 
 			adapter := NewPacmanAdapter(tt.packageName, map[string]interface{}{"state": tt.state}).(*PacmanAdapter)
-			needsAction, err := adapter.Check(&core.SystemContext{})
+			needsAction, err := adapter.Check(core.NewSystemContext(false, mockTr))
 
 			if err != nil {
 				t.Fatalf("Check returned error: %v", err)
@@ -116,13 +104,13 @@ func TestPacmanAdapter_Apply(t *testing.T) {
 		adapter := NewPacmanAdapter("htop", map[string]interface{}{"state": "present"}).(*PacmanAdapter)
 
 		// Mock check to say package is missing (so it tries to install)
-		core.CommandRunner = &MockRunner{
-			RunFunc: func(cmd *exec.Cmd) error {
-				return errors.New("not installed")
+		mockTr := &MockTransport{
+			ExecuteFunc: func(ctx context.Context, cmd string) (string, error) {
+				return "", errors.New("not installed")
 			},
 		}
 
-		ctx := &core.SystemContext{DryRun: true}
+		ctx := core.NewSystemContext(true, mockTr)
 		result, err := adapter.Apply(ctx)
 
 		if err != nil {
@@ -139,24 +127,21 @@ func TestPacmanAdapter_Apply(t *testing.T) {
 	t.Run("Install success", func(t *testing.T) {
 		adapter := NewPacmanAdapter("htop", map[string]interface{}{"state": "present"}).(*PacmanAdapter)
 
-		var executedCmd []string
+		var executedCmd string
 
-		core.CommandRunner = &MockRunner{
-			RunFunc: func(cmd *exec.Cmd) error {
+		mockTr := &MockTransport{
+			ExecuteFunc: func(ctx context.Context, cmd string) (string, error) {
 				// 1. Check call (returns err -> not installed)
-				if cmd.Args[1] == "-Qi" {
-					return errors.New("not installed")
+				if strings.Contains(cmd, "-Qi") {
+					return "", errors.New("not installed")
 				}
-				return nil
-			},
-			CombinedOutputFunc: func(cmd *exec.Cmd) ([]byte, error) {
 				// 2. Install call
-				executedCmd = cmd.Args
-				return []byte("installation success"), nil
+				executedCmd = cmd
+				return "installation success", nil
 			},
 		}
 
-		ctx := &core.SystemContext{DryRun: false}
+		ctx := core.NewSystemContext(false, mockTr)
 		result, err := adapter.Apply(ctx)
 
 		if err != nil {
@@ -166,13 +151,10 @@ func TestPacmanAdapter_Apply(t *testing.T) {
 			t.Error("Expected Changed=true")
 		}
 
-		// Verify command args for install: pacman -S --noconfirm --needed htop
-		expected := []string{"pacman", "-S", "--noconfirm", "--needed", "htop"}
-		if len(executedCmd) != 5 {
-			t.Errorf("Expected command length 5, got %d: %v", len(executedCmd), executedCmd)
-		}
-		if executedCmd[0] != expected[0] || executedCmd[4] != expected[4] {
-			t.Errorf("Unexpected command: %v", executedCmd)
+		// Verify command for install: pacman -S --noconfirm --needed htop
+		expected := "pacman -S --noconfirm --needed htop"
+		if executedCmd != expected {
+			t.Errorf("Unexpected command: got %s, want %s", executedCmd, expected)
 		}
 	})
 }
@@ -184,27 +166,24 @@ func TestPacmanAdapter_Revert(t *testing.T) {
 		adapter := NewPacmanAdapter("nano", map[string]interface{}{"state": "present"}).(*PacmanAdapter)
 		adapter.ActionPerformed = "installed"
 
-		var executedCmd []string
+		var executedCmd string
 
-		core.CommandRunner = &MockRunner{
-			CombinedOutputFunc: func(cmd *exec.Cmd) ([]byte, error) {
-				executedCmd = cmd.Args
-				return []byte("removed"), nil
+		mockTr := &MockTransport{
+			ExecuteFunc: func(ctx context.Context, cmd string) (string, error) {
+				executedCmd = cmd
+				return "removed", nil
 			},
 		}
 
-		err := adapter.Revert(&core.SystemContext{})
+		err := adapter.Revert(core.NewSystemContext(false, mockTr))
 		if err != nil {
 			t.Fatalf("Revert failed: %v", err)
 		}
 
 		// Verify remove command: pacman -Rns --noconfirm nano
-		expected := []string{"pacman", "-Rns", "--noconfirm", "nano"}
-		if len(executedCmd) != 4 {
-			t.Errorf("Expected command length 4, got %d: %v", len(executedCmd), executedCmd)
-		}
-		if executedCmd[1] != expected[1] || executedCmd[3] != expected[3] {
-			t.Errorf("Unexpected command: got %v, want %v", executedCmd, expected)
+		expected := "pacman -Rns --noconfirm nano"
+		if executedCmd != expected {
+			t.Errorf("Unexpected command: got %s, want %s", executedCmd, expected)
 		}
 	})
 }

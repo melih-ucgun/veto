@@ -22,12 +22,17 @@ func init() {
 
 // NewPacmanAdapter yeni bir örnek oluşturur.
 func NewPacmanAdapter(name string, params map[string]interface{}) core.Resource {
+	pkgName, _ := params["name"].(string)
+	if pkgName == "" {
+		pkgName = name
+	}
+
 	state, _ := params["state"].(string)
 	if state == "" {
 		state = "present"
 	}
 	return &PacmanAdapter{
-		BaseResource: core.BaseResource{Name: name, Type: "package"},
+		BaseResource: core.BaseResource{Name: pkgName, Type: "package"},
 		State:        state,
 	}
 }
@@ -44,7 +49,7 @@ func (r *PacmanAdapter) Validate(ctx *core.SystemContext) error {
 
 func (r *PacmanAdapter) Check(ctx *core.SystemContext) (bool, error) {
 	// Pacman ile paket kontrolü: pacman -Qi <paket>
-	installed := isInstalled("pacman", "-Qi", r.Name)
+	installed := isInstalled(ctx, "pacman", "-Qi", r.Name)
 
 	if r.State == "absent" {
 		// Eğer silinmesi isteniyorsa ama yüklüyse -> Değişiklik lazım (true)
@@ -86,7 +91,7 @@ func (r *PacmanAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 		r.ActionPerformed = "installed"
 	}
 
-	output, err := runCommand(cmd, args...)
+	output, err := runCommand(ctx, cmd, args...)
 	if err != nil {
 		r.ActionPerformed = ""
 		return core.Failure(err, fmt.Sprintf("Failed to %s package %s: %s", r.State, r.Name, output)), err
@@ -103,11 +108,11 @@ func (r *PacmanAdapter) RevertAction(action string, ctx *core.SystemContext) err
 	// Revert the given action
 	if action == "installed" {
 		// Undo install -> Remove
-		_, err := runCommand("pacman", "-Rns", "--noconfirm", r.Name)
+		_, err := runCommand(ctx, "pacman", "-Rns", "--noconfirm", r.Name)
 		return err
 	} else if action == "removed" {
 		// Undo remove -> Install
-		_, err := runCommand("pacman", "-S", "--noconfirm", "--needed", r.Name)
+		_, err := runCommand(ctx, "pacman", "-S", "--noconfirm", "--needed", r.Name)
 		return err
 	}
 	return fmt.Errorf("unknown action to revert: %s", action)
@@ -116,7 +121,7 @@ func (r *PacmanAdapter) RevertAction(action string, ctx *core.SystemContext) err
 // ListInstalled returns a list of explicitly installed packages.
 func (r *PacmanAdapter) ListInstalled(ctx *core.SystemContext) ([]string, error) {
 	// pacman -Qqe: Query, Quiet (name only), Explicitly installed
-	output, err := runCommand("pacman", "-Qqe")
+	output, err := runCommand(ctx, "pacman", "-Qqe")
 	if err != nil {
 		return nil, fmt.Errorf("failed to list installed packages: %w", err)
 	}
@@ -151,7 +156,7 @@ func (r *PacmanAdapter) RemoveBatch(names []string, ctx *core.SystemContext) err
 	args := []string{"-Rns", "--noconfirm"}
 	args = append(args, names...)
 
-	output, err := runCommand("pacman", args...)
+	output, err := runCommand(ctx, "pacman", args...)
 	if err != nil {
 		return fmt.Errorf("failed to batch remove packages: %s: %w", output, err)
 	}

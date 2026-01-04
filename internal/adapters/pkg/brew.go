@@ -37,7 +37,7 @@ func (r *BrewAdapter) Validate(ctx *core.SystemContext) error {
 
 func (r *BrewAdapter) Check(ctx *core.SystemContext) (bool, error) {
 	// brew list <package>
-	installed := isInstalled("brew", "list", r.Name)
+	installed := isInstalled(ctx, "brew", "list", r.Name)
 
 	if r.State == "absent" {
 		return installed, nil
@@ -62,7 +62,7 @@ func (r *BrewAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 		args = []string{"install", r.Name}
 	}
 
-	out, err := runCommand("brew", args...)
+	out, err := runCommand(ctx, "brew", args...)
 	if err != nil {
 		return core.Failure(err, "Brew failed: "+out), err
 	}

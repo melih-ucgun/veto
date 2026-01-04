@@ -1,13 +1,15 @@
 package snapshot
 
+import "github.com/melih-ucgun/veto/internal/core"
+
 // Provider defines the interface for snapshot tools
 type Provider interface {
 	Name() string
-	IsAvailable() bool
+	IsAvailable(ctx *core.SystemContext) bool
 	// CreateSnapshot creates a single snapshot with description
-	CreateSnapshot(description string) error
+	CreateSnapshot(ctx *core.SystemContext, description string) error
 	// CreatePreSnapshot starts a transactional snapshot (returns transaction ID/Handle)
-	CreatePreSnapshot(description string) (string, error)
+	CreatePreSnapshot(ctx *core.SystemContext, description string) (string, error)
 	// CreatePostSnapshot completes a transactional snapshot using the ID from Pre
-	CreatePostSnapshot(id string, description string) error
+	CreatePostSnapshot(ctx *core.SystemContext, id string, description string) error
 }

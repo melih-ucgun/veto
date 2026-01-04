@@ -3,7 +3,6 @@ package git
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -99,7 +98,7 @@ func (r *GitAdapter) Check(ctx *core.SystemContext) (bool, error) {
 	}
 
 	// Remote URL kontrolü (Güvenlik)
-	currentRemote, err := getRemoteURL(r.Dest, r.Remote)
+	currentRemote, err := getRemoteURL(ctx, r.Dest, r.Remote)
 	if err != nil {
 		return false, fmt.Errorf("failed to get remote url: %w", err)
 	}
@@ -110,7 +109,7 @@ func (r *GitAdapter) Check(ctx *core.SystemContext) (bool, error) {
 
 	// Eğer spesifik bir commit isteniyorsa
 	if r.Commit != "" {
-		head, err := getHeadSHA(r.Dest)
+		head, err := getHeadSHA(ctx, r.Dest)
 		if err != nil {
 			return false, err
 		}
@@ -122,14 +121,14 @@ func (r *GitAdapter) Check(ctx *core.SystemContext) (bool, error) {
 	// Eğer update isteniyorsa
 	if r.Update {
 		// Fetch yapıp durumu kontrol et
-		if err := fetchRemote(r.Dest, r.Remote); err != nil {
+		if err := fetchRemote(ctx, r.Dest, r.Remote); err != nil {
 			return false, fmt.Errorf("git fetch failed: %w", err)
 		}
 
 		// Branch takibi
 		if r.Branch != "" {
 			// Şu anki branch doğru mu?
-			currentBranch, err := getCurrentBranch(r.Dest)
+			currentBranch, err := getCurrentBranch(ctx, r.Dest)
 			if err != nil {
 				return false, err
 			}
@@ -138,13 +137,13 @@ func (r *GitAdapter) Check(ctx *core.SystemContext) (bool, error) {
 			}
 
 			// Remote ile fark var mı?
-			start, err := getHeadSHA(r.Dest)
+			start, err := getHeadSHA(ctx, r.Dest)
 			if err != nil {
 				return false, err
 			}
 			// Remote branch SHA
 			remoteRef := fmt.Sprintf("%s/%s", r.Remote, r.Branch)
-			remoteSHA, err := getRefSHA(r.Dest, remoteRef)
+			remoteSHA, err := getRefSHA(ctx, r.Dest, remoteRef)
 			if err != nil {
 				return false, fmt.Errorf("remote ref not found: %s", remoteRef)
 			}
@@ -193,17 +192,17 @@ func (r *GitAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 			args = append(args, "-b", r.Branch)
 		}
 
-		cmd := exec.Command("git", args...)
-		out, err := core.CommandRunner.CombinedOutput(cmd)
+		fullCmd := "git " + strings.Join(args, " ")
+		out, err := ctx.Transport.Execute(ctx.Context, fullCmd)
 		if err != nil {
-			return core.Failure(err, fmt.Sprintf("Git clone failed: %s", string(out))), err
+			return core.Failure(err, fmt.Sprintf("Git clone failed: %s", out)), err
 		}
 
 		r.IsNew = true // Yeni oluşturuldu
 
 		// Eğer spesifik commit'e dönülecekse
 		if r.Commit != "" {
-			if err := checkout(r.Dest, r.Commit); err != nil {
+			if err := checkout(ctx, r.Dest, r.Commit); err != nil {
 				return core.Failure(err, "Git checkout commit failed"), err
 			}
 		}
@@ -214,12 +213,12 @@ func (r *GitAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 	// Klasör varsa Update/Checkout
 
 	// Rollback için current SHA'yı sakla
-	currentSHA, _ := getHeadSHA(r.Dest)
+	currentSHA, _ := getHeadSHA(ctx, r.Dest)
 	r.PreviousSHA = currentSHA
 
 	// Fetch
 	if r.Update || r.Commit != "" {
-		if err := fetchRemote(r.Dest, r.Remote); err != nil {
+		if err := fetchRemote(ctx, r.Dest, r.Remote); err != nil {
 			return core.Failure(err, "Git fetch failed"), err
 		}
 	}
@@ -233,17 +232,17 @@ func (r *GitAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 		target = r.Commit
 	}
 
-	if err := checkout(r.Dest, target); err != nil {
+	if err := checkout(ctx, r.Dest, target); err != nil {
 		return core.Failure(err, fmt.Sprintf("Git checkout %s failed", target)), err
 	}
 
 	// Eğer branch ise ve update isteniyorsa pull yap
 	if r.Update && r.Commit == "" && r.Tag == "" {
 		// git pull origin branch
-		cmd := exec.Command("git", "-C", r.Dest, "pull", r.Remote, r.Branch)
-		out, err := core.CommandRunner.CombinedOutput(cmd)
+		fullCmd := fmt.Sprintf("git -C %s pull %s %s", r.Dest, r.Remote, r.Branch)
+		out, err := ctx.Transport.Execute(ctx.Context, fullCmd)
 		if err != nil {
-			return core.Failure(err, fmt.Sprintf("Git pull failed: %s", string(out))), err
+			return core.Failure(err, fmt.Sprintf("Git pull failed: %s", out)), err
 		}
 		return core.SuccessChange("Updated git repo"), nil
 	}
@@ -260,7 +259,7 @@ func (r *GitAdapter) Revert(ctx *core.SystemContext) error {
 
 	// Update edildiyse eski SHA'ya dön
 	if r.PreviousSHA != "" {
-		if err := checkout(r.Dest, r.PreviousSHA); err != nil {
+		if err := checkout(ctx, r.Dest, r.PreviousSHA); err != nil {
 			return fmt.Errorf("failed to revert git repo to %s: %w", r.PreviousSHA, err)
 		}
 	}
@@ -275,56 +274,56 @@ func (r *GitAdapter) isGitRepo(ctx *core.SystemContext, path string) bool {
 	return err == nil
 }
 
-func getRemoteURL(path, remote string) (string, error) {
-	cmd := exec.Command("git", "-C", path, "remote", "get-url", remote)
-	out, err := core.CommandRunner.CombinedOutput(cmd)
+func getRemoteURL(ctx *core.SystemContext, path, remote string) (string, error) {
+	fullCmd := fmt.Sprintf("git -C %s remote get-url %s", path, remote)
+	out, err := ctx.Transport.Execute(ctx.Context, fullCmd)
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(string(out)), nil
+	return strings.TrimSpace(out), nil
 }
 
-func getHeadSHA(path string) (string, error) {
-	cmd := exec.Command("git", "-C", path, "rev-parse", "HEAD")
-	out, err := core.CommandRunner.CombinedOutput(cmd)
+func getHeadSHA(ctx *core.SystemContext, path string) (string, error) {
+	fullCmd := fmt.Sprintf("git -C %s rev-parse HEAD", path)
+	out, err := ctx.Transport.Execute(ctx.Context, fullCmd)
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(string(out)), nil
+	return strings.TrimSpace(out), nil
 }
 
-func fetchRemote(path, remote string) error {
-	cmd := exec.Command("git", "-C", path, "fetch", remote)
-	out, err := core.CommandRunner.CombinedOutput(cmd)
+func fetchRemote(ctx *core.SystemContext, path, remote string) error {
+	fullCmd := fmt.Sprintf("git -C %s fetch %s", path, remote)
+	out, err := ctx.Transport.Execute(ctx.Context, fullCmd)
 	if err != nil {
-		return fmt.Errorf("output: %s, error: %w", string(out), err)
+		return fmt.Errorf("output: %s, error: %w", out, err)
 	}
 	return nil
 }
 
-func getCurrentBranch(path string) (string, error) {
-	cmd := exec.Command("git", "-C", path, "rev-parse", "--abbrev-ref", "HEAD")
-	out, err := core.CommandRunner.CombinedOutput(cmd)
+func getCurrentBranch(ctx *core.SystemContext, path string) (string, error) {
+	fullCmd := fmt.Sprintf("git -C %s rev-parse --abbrev-ref HEAD", path)
+	out, err := ctx.Transport.Execute(ctx.Context, fullCmd)
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(string(out)), nil
+	return strings.TrimSpace(out), nil
 }
 
-func getRefSHA(path, ref string) (string, error) {
-	cmd := exec.Command("git", "-C", path, "rev-parse", ref)
-	out, err := core.CommandRunner.CombinedOutput(cmd)
+func getRefSHA(ctx *core.SystemContext, path, ref string) (string, error) {
+	fullCmd := fmt.Sprintf("git -C %s rev-parse %s", path, ref)
+	out, err := ctx.Transport.Execute(ctx.Context, fullCmd)
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(string(out)), nil
+	return strings.TrimSpace(out), nil
 }
 
-func checkout(path, target string) error {
-	cmd := exec.Command("git", "-C", path, "checkout", target)
-	out, err := core.CommandRunner.CombinedOutput(cmd)
+func checkout(ctx *core.SystemContext, path, target string) error {
+	fullCmd := fmt.Sprintf("git -C %s checkout %s", path, target)
+	out, err := ctx.Transport.Execute(ctx.Context, fullCmd)
 	if err != nil {
-		return fmt.Errorf("output: %s, error: %w", string(out), err)
+		return fmt.Errorf("output: %s, error: %w", out, err)
 	}
 	return nil
 }

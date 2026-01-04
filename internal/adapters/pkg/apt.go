@@ -41,7 +41,7 @@ func (r *AptAdapter) Validate(ctx *core.SystemContext) error {
 
 func (r *AptAdapter) Check(ctx *core.SystemContext) (bool, error) {
 	// dpkg -s <package>
-	installed := isInstalled("dpkg", "-s", r.Name)
+	installed := isInstalled(ctx, "dpkg", "-s", r.Name)
 
 	if r.State == "absent" {
 		return installed, nil
@@ -68,7 +68,7 @@ func (r *AptAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 		r.ActionPerformed = "installed"
 	}
 
-	out, err := runCommand("apt-get", args...)
+	out, err := runCommand(ctx, "apt-get", args...)
 	if err != nil {
 		r.ActionPerformed = ""
 		return core.Failure(err, "Apt failed: "+out), err
@@ -83,10 +83,10 @@ func (r *AptAdapter) Revert(ctx *core.SystemContext) error {
 
 func (r *AptAdapter) RevertAction(action string, ctx *core.SystemContext) error {
 	if action == "installed" {
-		_, err := runCommand("apt-get", "remove", "-y", r.Name)
+		_, err := runCommand(ctx, "apt-get", "remove", "-y", r.Name)
 		return err
 	} else if action == "removed" {
-		_, err := runCommand("apt-get", "install", "-y", r.Name)
+		_, err := runCommand(ctx, "apt-get", "install", "-y", r.Name)
 		return err
 	}
 	return nil

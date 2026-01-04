@@ -36,7 +36,7 @@ func (r *YumAdapter) Validate(ctx *core.SystemContext) error {
 }
 
 func (r *YumAdapter) Check(ctx *core.SystemContext) (bool, error) {
-	installed := isInstalled("rpm", "-q", r.Name)
+	installed := isInstalled(ctx, "rpm", "-q", r.Name)
 	if r.State == "absent" {
 		return installed, nil
 	}
@@ -60,7 +60,7 @@ func (r *YumAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 		args = []string{"install", "-y", r.Name}
 	}
 
-	out, err := runCommand("yum", args...)
+	out, err := runCommand(ctx, "yum", args...)
 	if err != nil {
 		return core.Failure(err, "Yum failed: "+out), err
 	}

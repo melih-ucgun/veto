@@ -2,9 +2,9 @@ package snapshot
 
 import (
 	"fmt"
-	"os/exec"
 	"strings"
 
+	"github.com/melih-ucgun/veto/internal/core"
 	"github.com/pterm/pterm"
 )
 
@@ -23,31 +23,32 @@ func (s *Snapper) Name() string {
 	return "Snapper"
 }
 
-func (s *Snapper) IsAvailable() bool {
-	_, err := exec.LookPath("snapper")
+func (s *Snapper) IsAvailable(ctx *core.SystemContext) bool {
+	_, err := ctx.Transport.Execute(ctx.Context, "which snapper")
 	return err == nil
 }
 
-func (s *Snapper) CreateSnapshot(description string) error {
-	cmd := exec.Command("snapper", "-c", s.configName, "create", "-d", description)
-	return cmd.Run()
+func (s *Snapper) CreateSnapshot(ctx *core.SystemContext, description string) error {
+	fullCmd := fmt.Sprintf("snapper -c %s create -d \"%s\"", s.configName, description)
+	_, err := ctx.Transport.Execute(ctx.Context, fullCmd)
+	return err
 }
 
-func (s *Snapper) CreatePreSnapshot(description string) (string, error) {
-	cmd := exec.Command("snapper", "-c", s.configName, "create", "-t", "pre", "-p", "-d", description)
-	out, err := cmd.Output()
+func (s *Snapper) CreatePreSnapshot(ctx *core.SystemContext, description string) (string, error) {
+	fullCmd := fmt.Sprintf("snapper -c %s create -t pre -p -d \"%s\"", s.configName, description)
+	out, err := ctx.Transport.Execute(ctx.Context, fullCmd)
 	if err != nil {
 		return "", fmt.Errorf("snapper pre failed: %w", err)
 	}
-	return strings.TrimSpace(string(out)), nil
+	return strings.TrimSpace(out), nil
 }
 
-func (s *Snapper) CreatePostSnapshot(id string, description string) error {
+func (s *Snapper) CreatePostSnapshot(ctx *core.SystemContext, id string, description string) error {
 	if id == "" {
 		return fmt.Errorf("invalid pre-snapshot id")
 	}
-	cmd := exec.Command("snapper", "-c", s.configName, "create", "-t", "post", "--pre-number", id, "-d", description)
-	if err := cmd.Run(); err != nil {
+	fullCmd := fmt.Sprintf("snapper -c %s create -t post --pre-number %s -d \"%s\"", s.configName, id, description)
+	if _, err := ctx.Transport.Execute(ctx.Context, fullCmd); err != nil {
 		return fmt.Errorf("snapper post failed: %w", err)
 	}
 	pterm.Success.Printf("Snapper pair created (Pre: %s)\n", id)

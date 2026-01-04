@@ -60,6 +60,11 @@ type SystemContext struct {
 	} `yaml:"-"`
 }
 
+// Variables returns the Vars map, providing a friendly name for templates.
+func (c *SystemContext) Variables() map[string]string {
+	return c.Vars
+}
+
 type SystemHardware struct {
 	CPUModel  string `yaml:"cpu_model"`  // "AMD Ryzen 7 5800X"
 	CPUCore   int    `yaml:"cpu_core"`   // Çekirdek sayısı

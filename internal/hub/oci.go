@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/melih-ucgun/veto/internal/util"
+	"github.com/melih-ucgun/veto/internal/utils"
 )
 
 const (
@@ -63,7 +63,7 @@ func (c *OCIClient) Pull(ref, destDir string) error {
 		return err
 	}
 
-	return util.ExtractTarGz(blobStream, destDir)
+	return utils.ExtractTarGz(blobStream, destDir)
 }
 
 func (c *OCIClient) getManifest(registry, repo, tag string) (*ManifestV2, error) {
