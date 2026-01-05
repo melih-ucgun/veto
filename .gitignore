@@ -1,5 +1,6 @@
 # Binaries
 /veto
+binaryr
 /bin/
 /dist/
 *.exe
