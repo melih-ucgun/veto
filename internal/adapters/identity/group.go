@@ -57,7 +57,8 @@ func (r *GroupAdapter) Validate(ctx *core.SystemContext) error {
 
 func (r *GroupAdapter) Check(ctx *core.SystemContext) (bool, error) {
 	// getent group <name>
-	_, err := ctx.Transport.Execute(ctx.Context, "getent group "+r.Name)
+	// Output: name:password:gid:members
+	out, err := ctx.Transport.Execute(ctx.Context, "getent group "+r.Name)
 	exists := (err == nil)
 
 	if r.State == "absent" {
@@ -65,19 +66,19 @@ func (r *GroupAdapter) Check(ctx *core.SystemContext) (bool, error) {
 	}
 
 	if !exists {
-		return true, nil // Grup yok, oluşturulmalı
+		return true, nil // Group needs to be created
 	}
 
-	// Grup var, GID kontrolü (opsiyonel)
+	// Group exists, check properties (GID)
 	if r.Gid != -1 {
-		// getent çıktısını parse et: root:x:0:
-		out, _ := ctx.Transport.Execute(ctx.Context, "getent group "+r.Name)
 		parts := strings.Split(strings.TrimSpace(out), ":")
 		if len(parts) >= 3 {
-			currentGid, _ := strconv.Atoi(parts[2])
-			if currentGid != r.Gid {
-				return true, nil // GID değişmeli
+			currentGid, err := strconv.Atoi(parts[2])
+			if err == nil && currentGid != r.Gid {
+				return true, nil // GID mismatch
 			}
+		} else {
+			return false, fmt.Errorf("unexpected output from getent: %s", out)
 		}
 	}
 
