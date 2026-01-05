@@ -23,3 +23,13 @@ func IsOneOf(value string, allowed ...string) bool {
 	}
 	return false
 }
+
+// IsValidPort checks if the port is within lawful range
+func IsValidPort(port int) bool {
+	return port > 0 && port <= 65535
+}
+
+// IsValidProtocol checks if protocol is tcp, udp or any
+func IsValidProtocol(proto string) bool {
+	return IsOneOf(proto, "tcp", "udp", "any")
+}
