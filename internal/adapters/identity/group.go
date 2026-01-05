@@ -3,7 +3,6 @@ package identity
 import (
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/melih-ucgun/veto/internal/core"
 	"github.com/melih-ucgun/veto/internal/utils"
@@ -63,33 +62,8 @@ func (r *GroupAdapter) Validate(ctx *core.SystemContext) error {
 }
 
 func (r *GroupAdapter) Check(ctx *core.SystemContext) (bool, error) {
-	// getent group <name>
-	// Output: name:password:gid:members
-	out, err := ctx.Transport.Execute(ctx.Context, "getent group "+r.Name)
-	exists := (err == nil)
-
-	if r.State == "absent" {
-		return exists, nil
-	}
-
-	if !exists {
-		return true, nil // Group needs to be created
-	}
-
-	// Group exists, check properties (GID)
-	if r.Gid != -1 {
-		parts := strings.Split(strings.TrimSpace(out), ":")
-		if len(parts) >= 3 {
-			currentGid, err := strconv.Atoi(parts[2])
-			if err == nil && currentGid != r.Gid {
-				return true, nil // GID mismatch
-			}
-		} else {
-			return false, fmt.Errorf("unexpected output from getent: %s", out)
-		}
-	}
-
-	return false, nil
+	provider := GetIdentityProvider(ctx)
+	return provider.CheckGroup(ctx, r)
 }
 
 func (r *GroupAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
@@ -98,67 +72,11 @@ func (r *GroupAdapter) Apply(ctx *core.SystemContext) (core.Result, error) {
 		return core.SuccessNoChange(fmt.Sprintf("Group %s is correct", r.Name)), nil
 	}
 
-	if ctx.DryRun {
-		return core.SuccessChange(fmt.Sprintf("[DryRun] Group %s state=%s", r.Name, r.State)), nil
-	}
-
-	if r.State == "absent" {
-		fullCmd := "groupdel " + r.Name
-		if out, err := ctx.Transport.Execute(ctx.Context, fullCmd); err != nil {
-			return core.Failure(err, "Failed to delete group: "+out), err
-		}
-		r.ActionPerformed = "deleted"
-		return core.SuccessChange("Group deleted"), nil
-	}
-
-	// Grup oluşturma veya güncelleme
-	// Basitlik adına sadece oluşturmayı ele alalım, modifikasyon için groupmod kullanılabilir.
-	// Eğer grup zaten varsa ama GID yanlışsa, groupmod çalıştırılmalı.
-
-	if _, err := ctx.Transport.Execute(ctx.Context, "getent group "+r.Name); err == nil {
-		// Grup var, güncelle (groupmod)
-		args := []string{}
-		if r.Gid != -1 {
-			args = append(args, "-g", strconv.Itoa(r.Gid))
-		}
-		args = append(args, r.Name)
-
-		if len(args) > 1 { // Sadece isim değil, argüman da varsa
-			fullCmd := "groupmod " + strings.Join(args, " ")
-			if out, err := ctx.Transport.Execute(ctx.Context, fullCmd); err != nil {
-				return core.Failure(err, "Failed to modify group: "+out), err
-			}
-			r.ActionPerformed = "modified"
-			return core.SuccessChange("Group modified"), nil
-		}
-		return core.SuccessNoChange("Group exists"), nil
-	}
-
-	// Yeni grup oluştur (groupadd)
-	args := []string{}
-	if r.Gid != -1 {
-		args = append(args, "-g", strconv.Itoa(r.Gid))
-	}
-	if r.System {
-		args = append(args, "-r")
-	}
-	args = append(args, r.Name)
-
-	fullCmd := "groupadd " + strings.Join(args, " ")
-	if out, err := ctx.Transport.Execute(ctx.Context, fullCmd); err != nil {
-		return core.Failure(err, "Failed to create group: "+out), err
-	}
-	r.ActionPerformed = "created"
-
-	return core.SuccessChange("Group created"), nil
+	provider := GetIdentityProvider(ctx)
+	return provider.ApplyGroup(ctx, r)
 }
 
 func (r *GroupAdapter) Revert(ctx *core.SystemContext) error {
-	if r.ActionPerformed == "created" {
-		fullCmd := "groupdel " + r.Name
-		if out, err := ctx.Transport.Execute(ctx.Context, fullCmd); err != nil {
-			return fmt.Errorf("failed to revert group creation: %s: %w", out, err)
-		}
-	}
-	return nil
+	provider := GetIdentityProvider(ctx)
+	return provider.RevertGroup(ctx, r)
 }
