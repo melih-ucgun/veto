@@ -5,7 +5,7 @@ go 1.25.5
 require (
 	atomicgo.dev/cursor v0.2.0
 	github.com/Masterminds/sprig/v3 v3.3.0
-	github.com/expr-lang/expr v1.17.7
+	github.com/expr-lang/expr v1.17.8
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/pkg/sftp v1.13.10
